@@ -3,19 +3,19 @@ Reproducing results and dataset from (Understanding Deep Learning Requires Rethi
 
 ## Contributions
 
-* Randomization tests: **Deep neural networks easily fit random labels.**
+* **Randomization tests**: *Deep neural networks easily fit random labels.*
 >  At the heart of our methodology is a variant of the well-known randomization test from non-parametric statistics (Edgington & Onghena, 2007). In a first set of experiments, we train several standard architectures on a copy of the data where the true labels were replaced by random labels.
 
-* The role of explicit regularization: **Explicit regularization may improve generalization performance, but is neither necessary nor by itself sufficient for controlling generalization error.**
+* **The role of explicit regularization**: *Explicit regularization may improve generalization performance, but is neither necessary nor by itself sufficient for controlling generalization error.*
 > If the model architecture itself isn’t a sufficient regularizer, it remains to see how much explicit regularization helps. We show that explicit forms of regularization, such as weight decay, dropout, and data augmentation, do not adequately explain the generalization error of neural networks.
 
-* Finite sample expressivity. 
+* **Finite sample expressivity**. 
 > We complement our empirical observations with a theoretical construction showing that **generically large neural networks can express any labeling of the training data**. More formally, we exhibit a very simple two-layer ReLU network with p = 2n + d parameters that can express any labeling of any sample of size n in d dimensions. A previous construction due to Livni et al. (2014) achieved a similar result with far more parameters, namely, O(dn). While our depth 2 network inevitably has large width, we can also come up with a depth k network in which each layer has only O(n/k) parameters
 
-* The role of implicit regularization. 
+* **The role of implicit regularization**. 
 > While explicit regularizers like dropout and weight-decay may not be essential for generalization, it is certainly the case that not all models that fit the training data well generalize well. Indeed, in neural networks, we almost always choose our model as the output of running stochastic gradient descent. Appealing to linear models, we analyze how SGD acts as an implicit regularizer. For linear models, SGD always converges to a solution with small norm. Hence, the algorithm itself is implicitly regularizing the solution. Indeed, we show on small data sets that even Gaussian kernel methods can generalize well with no regularization. Though this doesn’t explain why certain architectures generalize better than other architectures, it does suggest that more investigation is needed to understand exactly what the properties are inherited by models that were trained using SGD.
 
-## Fitting Random Labels and Pixels
+## Experiments: Fitting Random Labels and Pixels
 We run our experiments with the following modifications of the labels and input images:
 * True labels: the original dataset without modification.
 * Partially corrupted labels: independently with probability p, the label of each image is corrupted as a uniform random class.
