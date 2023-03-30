@@ -2,7 +2,7 @@
 Reproducing results from the 2017 paper [1611.03530](https://arxiv.org/abs/1611.03530)
 
 ## This Repo contributes:
-- A modular approach for datasets with [randomization tests](#Experiments: Fitting Random Labels and Pixels)
+- A modular approach for datasets with randomization tests
 - Reproduces original experiments
 
 
