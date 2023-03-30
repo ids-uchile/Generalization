@@ -1,5 +1,10 @@
 # Understanding Deep Learning Requires Rethinking Generalization
-Reproducing work from (2017)[https://arxiv.org/abs/1611.03530]
+Reproducing results from the 2017 paper [1611.03530](https://arxiv.org/abs/1611.03530)
+
+## This Repo contributes:
+- A modular approach for datasets with [randomization tests](#Experiments: Fitting Random Labels and Pixels)
+- Reproduces original experiments
+
 
 ## Contributions
 
