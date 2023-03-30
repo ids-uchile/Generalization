@@ -1,5 +1,5 @@
-# Rethinking-Generalization
-Reproducing results and dataset from (Understanding Deep Learning Requires Rethinking Generalization)[https://arxiv.org/abs/1611.03530]
+# Understanding Deep Learning Requires Rethinking Generalization
+Reproducing work from (2017)[https://arxiv.org/abs/1611.03530]
 
 ## Contributions
 
