@@ -8,4 +8,5 @@ Reproducing results and dataset from (Understanding Deep Learning Requires Rethi
 tion test from non-parametric statistics (Edgington & Onghena, 2007). In a first set of experiments,
 we train several standard architectures on a copy of the data where the true labels were replaced by
 random labels. Our central finding can be summarized as:
+
 **Deep neural networks easily fit random labels.**
