@@ -17,9 +17,9 @@ Reproducing results and dataset from (Understanding Deep Learning Requires Rethi
 
 ## Fitting Random Labels and Pixels
 We run our experiments with the following modifications of the labels and input images:
-• True labels: the original dataset without modification.
-• Partially corrupted labels: independently with probability p, the label of each image is corrupted as a uniform random class.
-• Random labels: all the labels are replaced with random ones.
-• Shuffled pixels: a random permutation of the pixels is chosen and then the same permutation is applied to all the images in both training and test set.
-• Random pixels: a different random permutation is applied to each image independently.
-• Gaussian: A Gaussian distribution (with matching mean and variance to the original image dataset) is used to generate random pixels for each image.
+* True labels: the original dataset without modification.
+* Partially corrupted labels: independently with probability p, the label of each image is corrupted as a uniform random class.
+* Random labels: all the labels are replaced with random ones.
+* Shuffled pixels: a random permutation of the pixels is chosen and then the same permutation is applied to all the images in both training and test set.
+* Random pixels: a different random permutation is applied to each image independently.
+* Gaussian: A Gaussian distribution (with matching mean and variance to the original image dataset) is used to generate random pixels for each image.
