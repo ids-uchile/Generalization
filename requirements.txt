@@ -1,0 +1,4 @@
+torch
+numpy
+tqdm
+pillow>9.0.0
