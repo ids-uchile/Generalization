@@ -30,9 +30,9 @@ from functools import partial
 import torch
 from PIL import Image
 from torchvision import transforms
-from torchvision.transforms.functional import get_dimensions
 
 from .corruptions import *
+from .utils import get_dimensions
 
 
 class TensorTransformDataset(torch.utils.data.Dataset):
