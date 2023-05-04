@@ -32,3 +32,23 @@ We run our experiments with the following modifications of the labels and input 
 | **Shuffled Pixels**            | A random permutation of the pixels is chosen and then the same permutation is applied to all the images in both training and test set |
 | **Random Pixels**              | A different random permutation is applied to each image independently |
 | **Gaussian**                   | A Gaussian distribution (with matching mean and variance to the original image dataset) is used to generate random pixels for each image |
+
+
+## Installation
+
+### From PyPI
+
+To install the latest release from PyPI:
+
+```bash
+pip install -U ids-generalization
+```
+
+
+### Latest version from GitHub
+
+To pull and install the latest commit from this repository, along with its Python dependencies:
+
+```bash
+pip install git+https://github.com/ids-uchile/Rethinking-Generalization.git
+```
