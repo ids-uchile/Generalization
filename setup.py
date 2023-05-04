@@ -21,9 +21,9 @@ setup(
     readme="README.md",
     python_requires=">=3.8",
     author="Stepp1",
-    url="https://github.com/ds-uchile/Rethinking-Generalization",
+    url="https://github.com/ids-uchile/Generalization",
     license="BSD-3-Clause",
-    # packages=find_packages(exclude=["tests*"]),
+    packages=find_packages(exclude=["tests*"]),
     packages=find_packages(),
     install_requires=requirements
     + [
