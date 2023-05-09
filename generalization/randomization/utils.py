@@ -10,15 +10,18 @@ except ImportError:
     accimage = None
 
 # Mean and std for cifar dataset:
-cifar10_mean = (125.3, 123.0, 113.9)
-cifar10_std = (63.0, 62.1, 66.7)
+CIFAR10_NORMALIZE_MEAN = (0.4914, 0.4822, 0.4465)
+CIFAR10_NORMALIZE_STD = (0.2470, 0.2435, 0.2616)
 
-cifar10_normalize_mean = (0.4914, 0.4822, 0.4465)
-cifar10_normalize_std = (0.2470, 0.2435, 0.2616)
+CIFAR10_CHANNEL_MEAN = (CIFAR10_NORMALIZE_MEAN[c] * 255.0 for c in range(3))
+CIFAR10_CHANNEL_STD = (CIFAR10_NORMALIZE_STD[c] * 255.0 for c in range(3))
 
 # Mean and std for imagenet dataset:
-imagenet_normalize_mean = (0.485, 0.456, 0.406)
-imagenet_normalize_std = (0.229, 0.224, 0.225)
+IMAGENET_NORMALIZE_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_NORMALIZE_STD = (0.229, 0.224, 0.225)
+
+IMAGENET_CHANNEL_MEAN = (IMAGENET_NORMALIZE_MEAN[c] * 255.0 for c in range(3))
+IMAGENET_CHANNEL_STD = (IMAGENET_NORMALIZE_STD[c] * 255.0 for c in range(3))
 
 
 def _is_tensor_a_torch_image(x: Tensor) -> bool:
