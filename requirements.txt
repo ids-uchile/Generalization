@@ -1,5 +1,4 @@
 torch
 numpy
-tqdm
 torchvision
-pillow>9.0.0
+matplotlib
