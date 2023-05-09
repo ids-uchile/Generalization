@@ -30,8 +30,8 @@ def download_leaderboard():
     for col in ["Acc@1", "Acc@5", "Params", "GFLOPS"]:
         df[col] = df[col].apply(lambda x: x[0])
 
-    # Retain only url from Recipe
-    df["Recipe"] = df["Recipe"].apply(lambda x: x[1])
+    # drop Recipe column
+    df = df.drop("Recipe", axis=1)
 
     df.to_csv("imagenet_leaderboard.csv", index=False)
 
