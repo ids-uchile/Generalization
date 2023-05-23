@@ -28,11 +28,10 @@ import warnings
 from functools import partial
 
 import torch
-from PIL import Image
 from torchvision import transforms
 
 from .corruptions import *
-from .utils import get_dimensions
+from .utils import get_dimensions, open_data
 
 
 class TensorTransformDataset(torch.utils.data.Dataset):
@@ -45,8 +44,9 @@ class TensorTransformDataset(torch.utils.data.Dataset):
         if not all([isinstance(tensor, torch.Tensor) for tensor in tensors]):
             if transform is None:
                 transform = transforms.ToTensor()
-            else:
-                transform = transforms.Compose([transform, transforms.ToTensor()])
+            # check if ToTensor is in transform, if not add it
+            elif repr(transform).find("ToTensor") == -1:
+                transform = transforms.Compose([transforms.ToTensor(), transform])
 
         # check if tensors are of same length
         if not all([len(tensors[0]) == len(tensor) for tensor in tensors]):
@@ -73,16 +73,15 @@ class TensorTransformDataset(torch.utils.data.Dataset):
         """
 
         out_tuple = []
-        for i, tensor in enumerate(self.tensors):
-            if i == self.data_idx and self.transform is not None:
-                x = self.transform(tensor[index])
-                out_tuple.append(x)
+        x = open_data(self.data[index])
+        if self.transform is not None:
+            x = self.transform(x)
+        out_tuple.append(x)
 
-            elif i == self.target_idx and self.target_transform is not None:
-                y = self.target_transform(tensor[index])
-                out_tuple.append(y)
-            else:
-                out_tuple.append(tensor[index])
+        y = self.targets[index]
+        if self.target_transform is not None:
+            y = self.target_transform(y)
+        out_tuple.append(y)
 
         return tuple(out_tuple)
 
@@ -97,6 +96,7 @@ class RandomizedDataset(torch.utils.data.Dataset):
         corruption_name (str): Name of the corruption to be applied
         corruption_prob (float): Probability of corruption
         apply_corruption (bool): If True, the corruption is applied to the returned image
+        return_corruption (bool): If True, the corruption is returned along with the image
         train (bool): If True, the dataset is used for training
         transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version. E.g, ``transforms.RandomCrop``
         target_transform (callable, optional): A function/transform that takes in the target and transforms it.
@@ -120,10 +120,21 @@ class RandomizedDataset(torch.utils.data.Dataset):
         corruption_name=None,
         corruption_prob=0.0,
         apply_corruption=False,
+        return_corruption=False,
         train=True,
         transform=None,
         target_transform=None,
     ):
+        # apply_corruption and return_corruption cannot be both False
+        if (
+            not apply_corruption
+            and not return_corruption
+            and corruption_name is not None
+        ):
+            raise ValueError(
+                "Either apply_corruption or return_corruption must be True"
+            )
+
         if dataset is not None and isinstance(dataset, torch.utils.data.Dataset):
             data = dataset.data
             targets = dataset.targets
@@ -145,11 +156,17 @@ class RandomizedDataset(torch.utils.data.Dataset):
         self.corruption_name = corruption_name
         self.corruption_prob = corruption_prob
         self.apply_corruption = apply_corruption
+        self.return_corruption = return_corruption
+        self.transform = self.dataset.transform
+        self.target_transform = self.dataset.target_transform
 
-        self.setup_corruption_func()
+        if self.train:
+            self.setup_corruption_func()
+        else:
+            self.corruption_func = None
 
     def setup_corruption_func(self):
-        c, w, h = get_dimensions(Image.fromarray(self.dataset.data[0]))
+        c, w, h = get_dimensions(open_data(self.dataset.data[0]))
 
         self.corruption_checks()
 
@@ -202,7 +219,10 @@ class RandomizedDataset(torch.utils.data.Dataset):
         out = self.dataset[index]
 
         if self.corruption_func is not None:
-            out = self.corruption_func(*out)
+            *out, corruption = self.corruption_func(*out)
+
+        if self.return_corruption:
+            return tuple((*out, corruption))
 
         return out
 
@@ -215,6 +235,14 @@ class RandomizedDataset(torch.utils.data.Dataset):
     def extra_repr(self) -> str:
         corruption = self.corruption_name
         return f", Corruption: {corruption}"
+
+    def replace_transform(self, transform, target_transform=None):
+        self.transform = transform
+        self.dataset.transform = transform
+
+        if target_transform is not None:
+            self.target_transform = target_transform
+            self.dataset.target_transform = target_transform
 
     def corruption_checks(self):
         is_full_random = self.corruption_name in ["random_labels", "random_pixels"]
