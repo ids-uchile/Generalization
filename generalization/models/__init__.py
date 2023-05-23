@@ -45,15 +45,15 @@ def create_inception(weights=None, cifar=False):
 
 
 def get_cifar_models():
-    return [
-        create_inception(cifar=True),
-        create_alexnet(cifar=True),
-        create_mlp(32 * 32 * 3, [512], 10),
-        create_mlp(32 * 32 * 3, [512] * 3, 10),
-    ]
+    return {
+        "inception_small": create_inception(cifar=True),
+        "alexnet": create_alexnet(cifar=True),
+        "mlp_1x512": create_mlp(32 * 32 * 3, [512], 10),
+        "mlp_3x512": create_mlp(32 * 32 * 3, [512] * 3, 10),
+    }
 
 
 def get_imagenet_models():
-    return [
-        create_inception(),
-    ]
+    return {
+        "inception": create_inception(),
+    }
