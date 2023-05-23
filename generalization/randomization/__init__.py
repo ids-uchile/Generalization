@@ -19,6 +19,9 @@ def create_corrupted_dataset(
     train=True,
     root="./data/cifar10",
     apply_corruption=False,
+    return_corruption=False,
+    transform=None,
+    target_transform=None,
 ):
     if dataset_name.lower() == "imagenet":
         dataset = ImageNet(root=root, download=True, train=train)
@@ -32,5 +35,8 @@ def create_corrupted_dataset(
         corruption_name=corruption_name,
         corruption_prob=corruption_prob,
         apply_corruption=apply_corruption,
+        return_corruption=return_corruption,
         train=train,
+        transform=transform,
+        target_transform=target_transform,
     )
