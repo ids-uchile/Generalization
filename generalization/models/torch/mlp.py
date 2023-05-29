@@ -13,7 +13,7 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
 
         self._n_units = copy.copy(n_units)
-        self._layers = []
+        self.layers = []
         self.relu = nn.ReLU()
 
         for i in range(1, len(n_units)):
@@ -28,9 +28,9 @@ class MLP(nn.Module):
 
     def forward(self, x):
         x = x.view(-1, self._n_units[0])
-        out = self._layers[0](x)
+        out = self.layers[0](x)
 
-        for layer in self._layers[1:]:
+        for layer in self.layers[1:]:
             out = self.relu(out)
             out = layer(out)
 
