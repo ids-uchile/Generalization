@@ -44,7 +44,6 @@ To install the latest release from PyPI:
 pip install -U ids-generalization
 ```
 
-
 ### Latest version from GitHub
 
 To pull and install the latest commit from this repository, along with its Python dependencies:
@@ -52,3 +51,6 @@ To pull and install the latest commit from this repository, along with its Pytho
 ```bash
 pip install git+https://github.com/ids-uchile/Rethinking-Generalization.git
 ```
+
+### Jax
+If you wish to use the jax version, please follow the install instructions on the [jax](https://github.com/google/jax/blob/main/README.md) repository.

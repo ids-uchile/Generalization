@@ -1,6 +1,3 @@
-import os
-
-import pkg_resources
 from setuptools import find_packages, setup
 
 
@@ -9,7 +6,21 @@ def read_version(fname="generalization/version.py"):
     return locals()["__version__"]
 
 
-requirements = []
+def parse_requires_deps():
+    requirements = []
+    dependency_links = []
+
+    with open("requirements.txt", "r") as f:
+        for line in f:
+            if line.startswith("-f"):
+                dependency_links.append(line.split(" ")[1].strip())
+            else:
+                requirements.append(line.strip())
+
+    return requirements, dependency_links
+
+
+requirements, dependency_links = parse_requires_deps()
 
 setup(
     name="ids-generalization",
@@ -24,13 +35,8 @@ setup(
     url="https://github.com/ids-uchile/Generalization",
     license="BSD-3-Clause",
     packages=find_packages(exclude=["tests*"]),
-    install_requires=requirements
-    + [
-        str(r)
-        for r in pkg_resources.parse_requirements(
-            open(os.path.join(os.path.dirname(__file__), "requirements.txt"))
-        )
-    ],
+    install_requires=requirements,
+    dependency_links=dependency_links,
     include_package_data=True,
     extras_require={"dev": ["pytest", "black", "flake8", "isort"]},
 )
