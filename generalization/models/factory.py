@@ -10,10 +10,11 @@ Author: Stepp1
 
 
 from functools import partial
+
+import equinox as eqx
 import torch
 import torchvision
 
-import equinox as eqx
 import eqxvision
 
 from .torch_models.inception import InceptionSmall
