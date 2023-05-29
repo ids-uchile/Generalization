@@ -1,5 +1,5 @@
-import jax
 import equinox as eqx
+import jax
 
 
 class ConvModule(eqx.Module):
