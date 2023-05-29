@@ -16,7 +16,7 @@ import torchvision
 import equinox as eqx
 import eqxvision
 
-from .torch.inception import InceptionSmall
+from .torch_models.inception import InceptionSmall
 
 
 class ModelFactory:
@@ -60,14 +60,23 @@ class ModelFactory:
         return self.get_model(model_type, **kwargs)
 
     def get_model(self, model_type, **kwargs):
-        pass
+        if self.lib == "jax":
+            model = self.model_creators_jax[model_type](**kwargs)
+
+        elif self.lib == "torch":
+            model = self.model_creators_torch[model_type](**kwargs)
+
+        else:
+            raise ValueError(f"Unknown library: {self.lib}")
+
+        return model
 
     def get_cifar_models(self, lib: str = "jax"):
         self.lib = lib or self.lib
 
         return {
             "alexnet": self.create_model("alexnet", cifar=True),
-            "small_inception": self.create_model("small_inception", cifar=True),
+            # "small_inception": self.create_model("inception", cifar=True),
             "mlp_1x512": self.create_model("mlp_1x512"),
             "mlp_3x512": self.create_model("mlp_3x512"),
         }
