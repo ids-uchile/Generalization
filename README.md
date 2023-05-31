@@ -44,6 +44,8 @@ To install the latest release from PyPI:
 pip install -U ids-generalization
 ```
 
+Note that this package requires Jax to be installed separately. See [jax](https://github.com/google/jax/blob/main/README.md) repository for instructions.
+
 ### Latest version from GitHub
 
 To pull and install the latest commit from this repository, along with its Python dependencies:
@@ -52,5 +54,9 @@ To pull and install the latest commit from this repository, along with its Pytho
 pip install git+https://github.com/ids-uchile/Rethinking-Generalization.git
 ```
 
-### Jax
-If you wish to use the jax version, please follow the install instructions on the [jax](https://github.com/google/jax/blob/main/README.md) repository.
+## Jax and Pytorch
+If you want to try both Jax and Pytorch's versions install first [jax](https://github.com/google/jax), [Equinox](https://github.com/patrick-kidger/equinox) and then for Pytorch:
+
+```bash
+mamba install fastai -c fastai
+```
