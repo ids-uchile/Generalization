@@ -5,6 +5,7 @@ Author: Stepp1
 """
 
 import torch
+import torchvision
 from torch import nn
 
 
@@ -96,5 +97,7 @@ class InceptionSmall(nn.Module):
         return x
 
 
-def create_small():
-    return InceptionSmall()
+def inception(weights=None, cifar=False):
+    if cifar:
+        return InceptionSmall()
+    return torchvision.models.get_model("inception_v3", weights=weights)
