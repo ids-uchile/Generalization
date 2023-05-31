@@ -167,6 +167,9 @@ class RandomizedDataset(torch.utils.data.Dataset):
 
     def setup_corruption_func(self):
         c, w, h = get_dimensions(open_data(self.dataset.data[0]))
+        w = w - 4  # center crop
+        h = h - 4  # center crop
+        # print("Image dimensions: ", c, w, h)
 
         self.corruption_checks()
 
@@ -191,6 +194,7 @@ class RandomizedDataset(torch.utils.data.Dataset):
         elif self.corruption_name == "shuffled_pixels":
             # we cannot assume correct order [*,C,H,W] => we want to shuffle pixels in H,W
             self.pixel_permutation = torch.randperm(h * w * c // c)
+
             self.corruption_func = partial(
                 shuffled_pixels,
                 train=self.train,
