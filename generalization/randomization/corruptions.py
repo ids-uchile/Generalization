@@ -23,13 +23,11 @@
 #   - We make use of the self.corruption_prob to determine the probability of corruption
 
 
-from logging import warning
-
 import torch
 
 
 def random_labels(
-    img, target, train, corruption_prob, get_random_label, apply_corruption=False
+    img, target, corruption_prob, get_random_label, apply_corruption=False
 ):
     """
     Randomizes the labels of the dataset.
@@ -37,24 +35,22 @@ def random_labels(
     Args:
         img (torch.Tensor): Image tensor
         target (torch.Tensor): Target tensor
-        train (bool): If True, the dataset is used for training
         corruption_prob (float): Probability of corruption
         get_random_label (callable): Function that returns a random label
         apply_corruption (bool): If True, the corruption is applied to the returned image
     """
     random_label = target
-    if train:
-        if torch.rand(1) <= corruption_prob:
-            random_label = get_random_label(target)
+    if torch.rand(1) <= corruption_prob:
+        random_label = get_random_label(target)
 
-            if apply_corruption:
-                target = random_label
+        if apply_corruption:
+            target = random_label
 
     return img, target, random_label
 
 
 def random_pixels(
-    img, target, train, corruption_prob, permutation_size, apply_corruption=False
+    img, target, corruption_prob, permutation_size, apply_corruption=False
 ):
     """
     Applies a random permutation to the pixels of the image.
@@ -62,7 +58,6 @@ def random_pixels(
     Args:
         img (torch.Tensor): Image tensor
         target (torch.Tensor): Target tensor
-        train (bool): If True, the dataset is used for training
         corruption_prob (float): Probability of corruption
         permutation_size (int): Size of the permutation, e.g. 32x32 = 1024
         apply_corruption (bool): If True, the corruption is applied to the returned image
@@ -74,28 +69,24 @@ def random_pixels(
     # check if the permutation size matches the image size
     assert permutation_size == h * w, "Permutation size does not match image size"
 
-    if train:
-        if torch.rand(1) <= corruption_prob:
-            # choose different random permutation for each image
-            permutation_pixels = torch.randperm(permutation_size)
+    if torch.rand(1) <= corruption_prob:
+        # choose different random permutation for each image
+        permutation_pixels = torch.randperm(permutation_size)
 
-            # apply it to the image
-            if apply_corruption:
-                img = apply_pixel_permutation(img, permutation_pixels)
+        # apply it to the image
+        if apply_corruption:
+            img = apply_pixel_permutation(img, permutation_pixels)
 
     return img, target, permutation_pixels
 
 
-def shuffled_pixels(
-    img, target, train, corruption_prob, permutation, apply_corruption=False
-):
+def shuffled_pixels(img, target, corruption_prob, permutation, apply_corruption=False):
     """
     Applies the given permutation to the pixels of the image.
 
     Args:
         img (torch.Tensor): Image tensor
         target (torch.Tensor): Target tensor
-        train (bool): If True, the dataset is used for training
         corruption_prob (float): Probability of corruption
         permutation (torch.Tensor): Permutation of the pixels
         apply_corruption (bool): If True, the corruption is applied to the returned image
@@ -107,23 +98,38 @@ def shuffled_pixels(
     # check if the permutation size matches the image size
     assert permutation.size(0) == h * w, "Permutation size does not match image size"
 
-    if train:
-        if torch.rand(1) <= corruption_prob:
-            # choose different random permutation for each image
-            permutation_pixels = permutation
+    if torch.rand(1) <= corruption_prob:
+        # choose different random permutation for each image
+        permutation_pixels = permutation
 
-            # apply it to the image
-            if apply_corruption:
-                img = apply_pixel_permutation(img, permutation_pixels)
+        # apply it to the image
+        if apply_corruption:
+            img = apply_pixel_permutation(img, permutation_pixels)
 
     return img, target, permutation_pixels
 
 
-def gaussian_pixels(self, img, target):
-    if self.train:
-        raise NotImplementedError
+def gaussian_pixels(img, target, corruption_prob, apply_corruption=False, cifar=False):
+    c, w, h = img.size()
 
-    return img, target
+    sampled = None
+    if torch.rand(1) <= corruption_prob:
+        if cifar:
+            from .utils import CIFAR_MEAN as mean
+            from .utils import CIFAR_STD as std
+        else:
+            from .utils import IMAGENET_MEAN as mean
+            from .utils import IMAGENET_STD as std
+
+        sampled_channels = []
+        for i in range(c):
+            sampled_channels.append(torch.normal(mean[i], std[i], size=(w, h)))
+
+        sampled = torch.cat(sampled_channels, dim=0).unsqueeze(0)
+        if apply_corruption:
+            img = sampled
+
+    return img, target, sampled
 
 
 def apply_pixel_permutation(img, pixel_perm):
@@ -141,15 +147,9 @@ def undo_permutation(permuted_img, applied_pixel_perm):
     """
     Undoes the given permutation of the pixels to a permutated image.
     """
-
-    warning.warn("This function is not working properly.")
-
     c, w, h = permuted_img.size()
 
-    permutation_as_img = applied_pixel_perm.repeat(c, 1).view(c, -1).long()
-    unpermuted_img = (
-        permuted_img.view(c, -1)
-        .scatter(1, permutation_as_img, permuted_img.view(c, -1))
-        .view(c, h, w)
-    )
-    return unpermuted_img
+    true_order = torch.empty_like(applied_pixel_perm)
+    true_order[applied_pixel_perm] = torch.arange(applied_pixel_perm.size(0))
+
+    return permuted_img.view(c, -1)[:, true_order].view(c, w, h)
