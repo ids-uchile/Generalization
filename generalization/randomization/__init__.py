@@ -1,6 +1,6 @@
+from .builders import build_cifar10, create_corrupted_dataset
 from .corruptions import gaussian_pixels, random_labels, random_pixels, shuffled_pixels
 from .dataset import RandomizedDataset
-from .utils import build_cifar10, create_corrupted_dataset
 
 
 def available_corruptions():
