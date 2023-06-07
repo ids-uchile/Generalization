@@ -1,14 +1,11 @@
-from typing import Any
+from typing import Any, List
 
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from PIL import Image
+from torch import Tensor
 from torchvision import transforms
-from torchvision.datasets import CIFAR10, ImageNet
-
-from .dataset import RandomizedDataset
-from .transforms import get_cifar10_transforms
 
 # Mean and std for cifar dataset:
 CIFAR10_NORMALIZE_MEAN = (0.4914, 0.4822, 0.4465)
@@ -94,84 +91,60 @@ def image_grid_comparision(dataset, idxs, no_transform=False):
     fig.show()
 
 
-def create_corrupted_dataset(
-    dataset_name,
-    corruption_name,
-    corruption_prob=0.3,
-    train=True,
-    root="./data/cifar10",
-    apply_corruption=False,
-    return_corruption=False,
-    transform=None,
-    target_transform=None,
-):
-    if dataset_name.lower() == "imagenet":
-        dataset = ImageNet(root=root, download=True, train=train)
-    elif dataset_name.lower() == "cifar10":
-        dataset = CIFAR10(root=root, download=True, train=train)
-    else:
-        raise ValueError("Dataset name must be either 'imagenet' or 'cifar10'")
-
-    return RandomizedDataset(
-        dataset,
-        corruption_name=corruption_name,
-        corruption_prob=corruption_prob,
-        apply_corruption=apply_corruption,
-        return_corruption=return_corruption,
-        train=train,
-        transform=transform,
-        target_transform=target_transform,
-    )
-
-
-def build_cifar10(
-    corruption_name,
-    corruption_prob=0.3,
-    batch_size=128,
-    root="./data/cifar10",
-    show_images=False,
-    verbose=False,
-):
-    base_transforms = get_cifar10_transforms()
-    train_dset = create_corrupted_dataset(
-        dataset_name="cifar10",
-        corruption_name=corruption_name,
-        corruption_prob=corruption_prob,
-        train=True,
-        root=root,
-        apply_corruption=True,
-        return_corruption=False,
-        transform=base_transforms,
-    )
-
-    test_dset = create_corrupted_dataset(
-        dataset_name="cifar10",
-        train=False,
-        root=root,
-        corruption_name=None,
-        transform=base_transforms,
-    )
-
-    train_loader = torch.utils.data.DataLoader(
-        train_dset, batch_size=batch_size, shuffle=True, num_workers=6
-    )
-    test_loader = torch.utils.data.DataLoader(
-        test_dset, batch_size=batch_size * 2, shuffle=False, num_workers=6
-    )
-    random_idxs = np.random.choice(len(test_dset), 10)
-    if verbose:
-        print("Output Shape:", test_dset[random_idxs[0]][0].shape)
-    if show_images:
-        image_grid(train_dset, random_idxs, no_transform=True)
-        image_grid(test_dset, random_idxs, no_transform=True)
-    return (train_dset, test_dset), train_loader, test_loader
-
-
 def open_data(data: Any):
     """
     Opens an unknown data type and returns a PIL image.
     """
 
-    if isinstance(data, np.ndarray):
+    if isinstance(data, np.ndarray) or isinstance(data, Tensor):
         return Image.fromarray(data)
     return Image.open(data)
+
+
+def _is_tensor_a_torch_image(x: Tensor) -> bool:
+    return x.ndim >= 2
+
+
+def _assert_image_tensor(img: Tensor) -> None:
+    if not _is_tensor_a_torch_image(img):
+        raise TypeError("Tensor is not a torch image.")
+
+
+def get_dimensions(img: Tensor) -> List[int]:
+    """Returns the dimensions of an image as [channels, height, width].
+
+    Args:
+        img (PIL Image or Tensor): The image to be checked.
+
+    Returns:
+        List[int]: The image dimensions.
+
+    Taken from torchvision.transforms.functional ...
+    """
+    if isinstance(img, torch.Tensor):
+        return tensor_dimensions(img)
+
+    return pil_dimensions(img)
+
+
+@torch.jit.unused
+def _is_pil_image(img: Any) -> bool:
+    return isinstance(img, Image.Image)
+
+
+@torch.jit.unused
+def pil_dimensions(img: Any) -> List[int]:
+    if _is_pil_image(img):
+        if hasattr(img, "getbands"):
+            channels = len(img.getbands())
+        else:
+            channels = img.channels
+        width, height = img.size
+        return [channels, height, width]
+
+
+def tensor_dimensions(img: Tensor) -> List[int]:
+    _assert_image_tensor(img)
+    channels = 1 if img.ndim == 2 else img.shape[-3]
+    height, width = img.shape[-2:]
+    return [channels, height, width]
