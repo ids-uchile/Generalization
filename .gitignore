@@ -6,3 +6,9 @@ build/
 *.egg-info/
 *.pdf
 images/
+.vscode/
+cifar-10-batches-py/
+cifar-10-python.tar.gz
+.DS_Store
+wandb/
+artifacts/
