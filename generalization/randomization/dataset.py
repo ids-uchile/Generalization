@@ -73,6 +73,7 @@ class RandomizedDataset(VisionDataset):
         train=True,
         transform=None,
         target_transform=None,
+        **kwargs,
     ):
         super().__init__(
             root=None, transform=transform, target_transform=target_transform
@@ -112,6 +113,7 @@ class RandomizedDataset(VisionDataset):
         self.corruption_prob = corruption_prob
         self.apply_corruption = apply_corruption
         self.return_corruption = return_corruption
+        self.kwargs = kwargs if kwargs is not None else {}
 
         if self.train:
             self.setup_corruption_func()
@@ -159,14 +161,19 @@ class RandomizedDataset(VisionDataset):
                 apply_corruption=self.apply_corruption,
             )
         elif self.corruption_name == "gaussian_pixels":
-            self.corruption_func = self.gaussian_image
+            self.corruption_func = partial(
+                gaussian_pixels,
+                corruption_prob=self.corruption_prob,
+                apply_corruption=self.apply_corruption,
+                use_cifar=self.kwargs["use_cifar"],
+            )
 
         else:
             self.corruption_func = None
 
     def __getitem__(self, index):
         x = transforms.functional.to_tensor(open_data(self.data[index]))
-        y = self.targets[index]
+        y = torch.tensor(self.targets[index])
 
         if self.corruption_func is not None:
             x, y, corruption = self.corruption_func(x, y)
@@ -177,7 +184,7 @@ class RandomizedDataset(VisionDataset):
         if self.target_transform is not None:
             y = self.target_transform(y)
 
-        return (x, y, corruption) if self.return_corruption else (x, y)
+        return (x, y, corruption, index) if self.return_corruption else (x, y, index)
 
     def __len__(self):
         return len(self.data)
@@ -205,8 +212,11 @@ class RandomizedDataset(VisionDataset):
                 )
             self.corruption_prob = 1.0
         else:
+            is_normal = (
+                self.corruption_name == "normal_labels" or self.corruption_func is None
+            )
             not_using_corruption_prob = self.corruption_prob == 0.0
-            if not_using_corruption_prob:
+            if not_using_corruption_prob and not is_normal:
                 warnings.warn(
                     "corruption_prob is not provided, using default value of 0.0"
                 )

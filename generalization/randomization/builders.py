@@ -10,7 +10,7 @@ from .utils import image_grid
 def create_corrupted_dataset(
     dataset_name,
     corruption_name,
-    corruption_prob=0.3,
+    corruption_prob=0.0,
     train=True,
     root="./data/cifar10",
     apply_corruption=False,
@@ -39,7 +39,7 @@ def create_corrupted_dataset(
 
 def build_cifar10(
     corruption_name,
-    corruption_prob=0.3,
+    corruption_prob=0.0,
     root="/data/cifar10",
     show_images=False,
     verbose=False,
