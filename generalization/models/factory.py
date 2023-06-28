@@ -45,7 +45,7 @@ class ModelFactory:
             "alexnet": partial(create_alexnet, lib="jax", key=self.key),
             "mlp_1x512": partial(
                 create_mlp,
-                in_size=32 * 32 * 3,
+                in_size=28 * 28 * 3,
                 hidden_sizes=[512],
                 out_size=10,
                 lib="jax",
@@ -53,7 +53,7 @@ class ModelFactory:
             ),
             "mlp_3x512": partial(
                 create_mlp,
-                in_size=32 * 32 * 3,
+                in_size=28 * 28 * 3,
                 hidden_sizes=[512] * 3,
                 out_size=10,
                 lib="jax",
@@ -88,6 +88,8 @@ class ModelFactory:
             self.key = key
 
         models = {
+            "resnet18": self.create_model("resnet18", cifar=True),
+            "resnet34": self.create_model("resnet34", cifar=True),
             "alexnet": self.create_model("alexnet", cifar=True),
             "inception": self.create_model("inception", cifar=True),
             "mlp_1x512": self.create_model("mlp_1x512"),
