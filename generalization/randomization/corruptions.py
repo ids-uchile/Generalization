@@ -109,23 +109,23 @@ def shuffled_pixels(img, target, corruption_prob, permutation, apply_corruption=
     return img, target, permutation_pixels
 
 
-def gaussian_pixels(img, target, corruption_prob, apply_corruption=False, cifar=False):
+def gaussian_pixels(
+    img, target, corruption_prob, apply_corruption=False, use_cifar=False
+):
     c, w, h = img.size()
 
     sampled = None
+
     if torch.rand(1) <= corruption_prob:
-        if cifar:
-            from .utils import CIFAR_MEAN as mean
-            from .utils import CIFAR_STD as std
+        if use_cifar:
+            from .utils import CIFAR10_CHANNEL_MEAN as mean
+            from .utils import CIFAR10_CHANNEL_STD as std
         else:
-            from .utils import IMAGENET_MEAN as mean
-            from .utils import IMAGENET_STD as std
+            from .utils import IMAGENET_CHANNEL_MEAN as mean
+            from .utils import IMAGENET_CHANNEL_STD as std
+        normal = torch.distributions.Normal(torch.tensor(mean), torch.tensor(std))
+        sampled = normal.sample((h, w)).permute(2, 0, 1).clamp(0, 255).type(torch.uint8)
 
-        sampled_channels = []
-        for i in range(c):
-            sampled_channels.append(torch.normal(mean[i], std[i], size=(w, h)))
-
-        sampled = torch.cat(sampled_channels, dim=0).unsqueeze(0)
         if apply_corruption:
             img = sampled
 
