@@ -30,6 +30,7 @@ from functools import partial
 import torch
 from torchvision import transforms
 from torchvision.datasets import VisionDataset
+from tqdm import tqdm
 
 from .corruptions import *
 from .utils import get_dimensions, open_data
@@ -115,8 +116,9 @@ class RandomizedDataset(VisionDataset):
         self.return_corruption = return_corruption
         self.kwargs = kwargs if kwargs is not None else {}
 
-        if self.train:
+        if self.train and self.corruption_name is not None:
             self.setup_corruption_func()
+            self.apply_corruptions()
         else:
             self.corruption_func = None
 
@@ -171,12 +173,24 @@ class RandomizedDataset(VisionDataset):
         else:
             self.corruption_func = None
 
+    def apply_corruptions(self):
+        self.corruptions = []
+        for index in tqdm(range(len(self.data))):
+            x = transforms.functional.to_tensor(open_data(self.data[index]))
+            y = torch.tensor(self.targets[index])
+
+            x, y, corruption = self.corruption_func(x, y)
+            self.corruptions.append(corruption)
+
+            self.data[index] = transforms.functional.to_pil_image(x)
+            self.targets[index] = y
+
     def __getitem__(self, index):
         x = transforms.functional.to_tensor(open_data(self.data[index]))
-        y = torch.tensor(self.targets[index])
+        y = torch.as_tensor(self.targets[index])
 
         if self.corruption_func is not None:
-            x, y, corruption = self.corruption_func(x, y)
+            corruption = self.corruptions[index]
 
         if self.transform is not None:
             x = self.transform(x)
@@ -184,7 +198,7 @@ class RandomizedDataset(VisionDataset):
         if self.target_transform is not None:
             y = self.target_transform(y)
 
-        return (x, y, corruption, index) if self.return_corruption else (x, y, index)
+        return (x, y, index, corruption) if self.return_corruption else (x, y, index)
 
     def __len__(self):
         return len(self.data)
@@ -212,9 +226,7 @@ class RandomizedDataset(VisionDataset):
                 )
             self.corruption_prob = 1.0
         else:
-            is_normal = (
-                self.corruption_name == "normal_labels" or self.corruption_func is None
-            )
+            is_normal = self.corruption_name == "normal_labels"
             not_using_corruption_prob = self.corruption_prob == 0.0
             if not_using_corruption_prob and not is_normal:
                 warnings.warn(

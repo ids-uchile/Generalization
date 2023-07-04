@@ -8,21 +8,25 @@ from torch import Tensor
 from torchvision import transforms
 
 # Mean and std for cifar dataset:
-CIFAR10_NORMALIZE_MEAN = (0.4914, 0.4822, 0.4465)
-CIFAR10_NORMALIZE_STD = (0.2470, 0.2435, 0.2616)
+CIFAR10_NORMALIZE_MEAN = tuple((0.4914, 0.4822, 0.4465))
+CIFAR10_NORMALIZE_STD = tuple((0.2470, 0.2435, 0.2616))
 
-CIFAR10_CHANNEL_MEAN = (CIFAR10_NORMALIZE_MEAN[c] * 255.0 for c in range(3))
-CIFAR10_CHANNEL_STD = (CIFAR10_NORMALIZE_STD[c] * 255.0 for c in range(3))
+CIFAR10_CHANNEL_MEAN = tuple((CIFAR10_NORMALIZE_MEAN[c] * 255.0 for c in range(3)))
+CIFAR10_CHANNEL_STD = tuple((CIFAR10_NORMALIZE_STD[c] * 255.0 for c in range(3)))
 
 # Mean and std for imagenet dataset:
-IMAGENET_NORMALIZE_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_NORMALIZE_STD = (0.229, 0.224, 0.225)
+IMAGENET_NORMALIZE_MEAN = tuple((0.485, 0.456, 0.406))
+IMAGENET_NORMALIZE_STD = tuple((0.229, 0.224, 0.225))
 
-IMAGENET_CHANNEL_MEAN = (IMAGENET_NORMALIZE_MEAN[c] * 255.0 for c in range(3))
-IMAGENET_CHANNEL_STD = (IMAGENET_NORMALIZE_STD[c] * 255.0 for c in range(3))
+IMAGENET_CHANNEL_MEAN = tuple((IMAGENET_NORMALIZE_MEAN[c] * 255.0 for c in range(3)))
+IMAGENET_CHANNEL_STD = tuple((IMAGENET_NORMALIZE_STD[c] * 255.0 for c in range(3)))
 
 
-def image_grid(dataset, idxs, no_transform=False):
+def image_grid(dataset, idxs, no_transform=False, save_fname=None):
+    if save_fname:
+        # increase font size
+        plt.rcParams.update({"font.size": 16})
+
     fig, axs = plt.subplots(2, 5, figsize=(10, 5))
 
     if no_transform:
@@ -42,10 +46,12 @@ def image_grid(dataset, idxs, no_transform=False):
         out = dataset[idx]
 
         if len(out) == 3:
-            img, label, corrupted_label = out
-        else:
-            img, label = out
+            img, label, index = out
             corrupted_label = label
+        elif len(out) == 4:
+            img, label, index, corrupted_label = out
+        else:
+            raise ValueError(f"Invalid output from dataset: {len(out)}")
 
         axs[i // 5, i % 5].imshow(img.permute(1, 2, 0))
         axs[i // 5, i % 5].set_title(dataset.classes[corrupted_label])
@@ -54,11 +60,19 @@ def image_grid(dataset, idxs, no_transform=False):
     if no_transform:
         dataset.replace_transform(dset_transform)
 
+    if save_fname:
+        fig.savefig(f"{save_fname}-grid.png", bbox_inches="tight", dpi=300)
+
+    plt.tight_layout()
     fig.show()
 
 
-def image_grid_comparision(dataset, idxs, no_transform=False):
-    fig, axs = plt.subplots(5, 2, figsize=(5, 10))
+def image_grid_comparision(dataset, idxs, no_transform=False, save_fname=None):
+    if save_fname:
+        # increase font size
+        plt.rcParams.update({"font.size": 16})
+
+    fig, axs = plt.subplots(2, 5, figsize=(10, 5))
 
     if no_transform:
         dset_transform = dataset.transform
@@ -68,26 +82,38 @@ def image_grid_comparision(dataset, idxs, no_transform=False):
         out = dataset[idx]
 
         if len(out) == 3:
-            img, label, corrupted_perm = out
-        else:
-            img, label = out
-            # corrupted_label = label
+            img, label, index = out
+            corrupted_perm = None
 
-        permutation_as_img = corrupted_perm.repeat(3, 1).view(3, -1).long()
-        permutated_img = img.view(3, -1).gather(1, permutation_as_img).view(3, 32, 32)
+        elif len(out) == 4:
+            img, label, index, corrupted_perm = out
+        else:
+            raise ValueError(f"Invalid output from dataset: {len(out)}")
+
+        if corrupted_perm is not None:
+            permutation_as_img = corrupted_perm.repeat(3, 1).view(3, -1).long()
+            permutated_img = (
+                img.view(3, -1).gather(1, permutation_as_img).view(3, 32, 32)
+            )
+        else:
+            permutated_img = img
 
         # show original and permutated image side by side
-        axs[i, 0].imshow(img.permute(1, 2, 0))
-        axs[i, 0].set_title(dataset.classes[label])
-        axs[i, 0].axis("off")
+        axs[0, i].imshow(img.permute(1, 2, 0))
+        axs[0, i].set_title(dataset.classes[label])
+        axs[0, i].axis("off")
 
-        axs[i, 1].imshow(permutated_img.permute(1, 2, 0))
-        axs[i, 1].set_title(dataset.classes[label])
-        axs[i, 1].axis("off")
+        axs[1, i].imshow(permutated_img.permute(1, 2, 0))
+        axs[1, i].set_title(dataset.classes[label])
+        axs[1, i].axis("off")
 
     if no_transform:
         dataset.replace_transform(dset_transform)
 
+    if save_fname:
+        fig.savefig(f"{save_fname}-comparison.png", bbox_inches="tight", dpi=300)
+
+    plt.tight_layout()
     fig.show()
 
 
