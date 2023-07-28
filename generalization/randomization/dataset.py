@@ -118,7 +118,8 @@ class RandomizedDataset(VisionDataset):
 
         if self.train and self.corruption_name is not None:
             self.setup_corruption_func()
-            self.apply_corruptions()
+            if self.corruption_func is not None:
+                self.apply_corruptions()
         else:
             self.corruption_func = None
 
