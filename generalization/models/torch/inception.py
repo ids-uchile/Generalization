@@ -101,3 +101,11 @@ def inception(weights=None, cifar=False):
     if cifar:
         return InceptionSmall()
     return torchvision.models.get_model("inception_v3", weights=weights)
+
+
+if __name__ == "__main__":
+    model = inception(cifar=True)
+    model.cpu()
+    x = torch.randn(1, 3, 28, 28)
+    x.cpu()
+    _ = model(x)

@@ -64,10 +64,6 @@ class ModelFactory:
 
     def create_model(self, model_type: str, lib: str = None, **kwargs):
         self.lib = lib or self.lib
-
-        return self.get_model(model_type, **kwargs)
-
-    def get_model(self, model_type, **kwargs):
         if self.lib == "jax":
             model = self.model_creators_jax[model_type](key=self.key, **kwargs)
 
@@ -88,14 +84,14 @@ class ModelFactory:
             self.key = key
 
         models = {
-            "resnet18": self.create_model("resnet18", cifar=True),
-            "resnet34": self.create_model("resnet34", cifar=True),
+            # "resnet18": self.create_model("resnet18", cifar=True),
+            # "resnet34": self.create_model("resnet34", cifar=True),
             "alexnet": self.create_model("alexnet", cifar=True),
             "inception": self.create_model("inception", cifar=True),
             "mlp_1x512": self.create_model("mlp_1x512"),
             "mlp_3x512": self.create_model("mlp_3x512"),
         }
-        return models if model_name is None else models[model_name]
+        return models if model_name is None else {model_name: models[model_name]}
 
     def get_imagenet_models(self, model_name: str = None, lib: str = "jax", key=None):
         self.lib = lib or self.lib
@@ -107,19 +103,19 @@ class ModelFactory:
             "resnet34": self.create_model("resnet34"),
         }
 
-        return models if model_name is None else models[model_name]
+        return models if model_name is None else {model_name: models[model_name]}
 
 
 def create_mlp(in_size, hidden_sizes, out_size, lib="torch", key=None):
     if lib == "jax":
-        from .jax_models.mlp import create_mlp
+        from .jax import create_mlp
 
         model = create_mlp(in_size, hidden_sizes, out_size, key=key)
 
     elif lib == "torch":
-        from .torch_models.mlp import create_mlp
+        from .torch import mlp
 
-        model = create_mlp(in_size, hidden_sizes, out_size)
+        model = mlp(in_size, hidden_sizes, out_size)
 
     else:
         raise ValueError(f"Unknown library: {lib}")
@@ -132,9 +128,10 @@ def create_resnet(resnet_size=18, weights=None, cifar=False, lib="torch", key=No
         raise NotImplementedError
 
     elif lib == "torch":
-        from .torch_models.resnet import resnet
+        raise NotImplementedError
+        # from .torch import resnet
 
-        model = resnet(resnet_size=resnet_size, weights=weights, cifar=cifar)
+        # model = resnet(resnet_size=resnet_size, weights=weights, cifar=cifar)
 
     else:
         raise ValueError(f"Unknown library: {lib}")
@@ -144,12 +141,12 @@ def create_resnet(resnet_size=18, weights=None, cifar=False, lib="torch", key=No
 
 def create_alexnet(weights=None, cifar=False, lib="torch", key=None):
     if lib == "jax":
-        from .jax_models.alexnet import alexnet
+        from .jax import alexnet
 
         model = alexnet(key=key, cifar=cifar)
 
     elif lib == "torch":
-        from .torch_models.alexnet import alexnet
+        from .torch import alexnet
 
         model = alexnet(weights=weights, cifar=cifar)
 
@@ -162,12 +159,12 @@ def create_alexnet(weights=None, cifar=False, lib="torch", key=None):
 def create_inception(weights=None, cifar=False, small="False", lib="torch", key=None):
     cifar = small or cifar
     if lib == "jax":
-        from .jax_models.inception import inception
+        from .jax import inception
 
         model = inception(cifar=cifar, key=key)
 
     elif lib == "torch":
-        from .torch_models.inception import inception
+        from .torch import inception
 
         model = inception(weights=weights, cifar=cifar)
     else:

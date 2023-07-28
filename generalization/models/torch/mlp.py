@@ -37,6 +37,6 @@ class MLP(nn.Module):
         return out
 
 
-def create_mlp(in_size, hidden_sizes, out_size):
+def mlp(in_size, hidden_sizes, out_size):
     model = MLP([in_size] + hidden_sizes + [out_size])
     return model
