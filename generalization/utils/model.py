@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torchmetrics
+from generalization.utils import build_experiment, get_num_cpus
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from torch import nn
@@ -40,18 +41,21 @@ class LitModel(L.LightningModule):
         self.patience = 5
         self.best_valid_acc = 0
 
-        self.epoch_state = {"batch_scores": [], "batch_indices": [], "batch_losses": []}
+        self.epoch_state = {"batch_logits": [], "batch_indices": [], "batch_losses": []}
         self.scores_df = pd.DataFrame(columns=["epoch", "sample_id", "score"])
+
+        self.save_hyperparameters(self.hparams)
 
     def forward(self, x):
         out = self.net(x)
         return out
 
     def step(self, batch, batch_idx):
-        batch = self.drop_return_index(batch)
-
         logits = self(batch[0])
         loss_per_sample = F.cross_entropy(logits, batch[1], reduction="none")
+        if self.hparams["gradient_clipping"]:
+            torch.nn.utils.clip_grad_norm_(self.parameters(), 1.0)
+
         return loss_per_sample, logits, batch[1]
 
     def training_step(self, batch, batch_idx):
@@ -75,7 +79,9 @@ class LitModel(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         loss_per_sample, logits, y = self.step(batch, batch_idx)
         loss = loss_per_sample.mean()
-        self.log("valid/loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log(
+            "valid/loss", loss, on_epoch=True, on_step=False, prog_bar=True, logger=True
+        )
         self.step_metrics(logits=logits, y=y, mode="val")
         return loss
 
@@ -83,39 +89,54 @@ class LitModel(L.LightningModule):
         loss_per_sample, logits, y = self.step(batch, batch_idx)
         loss = loss_per_sample.mean()
 
-        self.log("test/loss", loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log(
+            "test/loss", loss, on_epoch=True, on_step=False, prog_bar=True, logger=True
+        )
         self.step_metrics(logits=logits, y=y, mode="val")
         return loss
 
     def on_train_batch_end(
         self, outputs: STEP_OUTPUT, batch: Any, batch_idx: int
     ) -> None:
-        from scores import compute_batch_scores
+        """
+        Tracks per sample indices, logits and their losses for the current epoch.
+        """
+        _, _, indices = batch
 
-        x, y, indices = batch
-
-        batch_scores = compute_batch_scores(outputs, (x, y), num_classes=self.n_classes)
+        logits = outputs["logits"].tolist()
         batch_losses = outputs["loss_per_sample"].cpu().detach().numpy()
 
-        self.epoch_state["batch_scores"].extend(batch_scores.tolist())
-        self.epoch_state["batch_losses"].extend(batch_losses)
         self.epoch_state["batch_indices"].extend(indices.tolist())
+        self.epoch_state["batch_logits"].extend(logits)
+        self.epoch_state["batch_losses"].extend(batch_losses)
 
         return None
 
     def on_train_epoch_end(self) -> None:
-        import pandas as pd
+        """
+        Computes and logs per sample scores for the current epoch.
+        """
 
-        el2n_scores = self.epoch_state["batch_scores"]
+        import pandas as pd
+        from scores import compute_scores
+
+        data = self.trainer.train_dataloader.dataset
+
+        logits = torch.as_tensor(self.epoch_state["batch_logits"]).to(
+            next(self.parameters()).device
+        )
+        y = torch.as_tensor(data.targets).to(next(self.parameters()).device)
+        scores = compute_scores(logits, y).cpu().detach().numpy()
+
         sample_losses = self.epoch_state["batch_losses"]
         sample_indices = self.epoch_state["batch_indices"]
-        epoch_column = self.current_epoch * np.ones(len(el2n_scores))
+        epoch_column = self.current_epoch * np.ones(len(sample_indices))
 
         df = pd.DataFrame(
             {
                 "epoch": epoch_column,
                 "sample_id": sample_indices,
-                "score": el2n_scores,
+                "score": scores,
                 "loss": sample_losses,
             }
         )
@@ -130,7 +151,8 @@ class LitModel(L.LightningModule):
             self.scores_df = pd.concat([self.scores_df, df])
             self.scores_df.to_csv(save_to)
 
-        self.epoch_state = {"batch_scores": [], "batch_indices": [], "batch_losses": []}
+        # # reset epoch state
+        self.epoch_state = {k: [] for k in self.epoch_state.keys()}
 
     def on_validation_end(self) -> None:
         current_valid_acc = self.valid_acc.compute()
@@ -154,7 +176,12 @@ class LitModel(L.LightningModule):
         if mode == "train":
             self.train_acc.update(logits, y)
             self.log(
-                "train/acc", self.train_acc, on_step=False, on_epoch=True, prog_bar=True
+                "train/acc",
+                self.train_acc,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
             )
 
         elif mode == "val":
@@ -167,6 +194,7 @@ class LitModel(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
+                logger=True,
             )
             self.log(
                 "valid/top5_acc",
@@ -174,6 +202,7 @@ class LitModel(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
+                logger=True,
             )
         elif mode == "test":
             self.test_acc.update(logits, y)
@@ -184,16 +213,76 @@ class LitModel(L.LightningModule):
                 self.test_top5_acc.compute(),
                 on_step=False,
                 on_epoch=True,
+                logger=True,
             )
-
-    def drop_return_index(self, batch):
-        x, y, _ = batch
-
-        return (x, y) if self.hparams["drop_return_index"] else batch
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(
-            self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=0.0001
+            self.net.parameters(),
+            lr=self.hparams["lr"],
+            momentum=self.hparams["momentum"],
+            weight_decay=self.hparams["weight_decay"],
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.95)
-        return [optimizer], [scheduler]
+
+        if self.hparams["lr_scheduler"]:
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.95)
+            return [optimizer], [scheduler]
+
+        return [optimizer]
+
+
+class LitDataModule(L.LightningDataModule):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams.update(hparams)
+
+    def setup(self, stage=None):
+        corrupt_prob = self.hparams["corrupt_prob"]
+        corrupt_name = self.hparams["corrupt_name"]
+        batch_size = self.hparams["batch_size"]
+
+        experiment_data = build_experiment(
+            corrupt_prob=corrupt_prob,
+            corrupt_name=corrupt_name,
+            batch_size=batch_size,
+        )[corrupt_name]
+
+        self.train_set = experiment_data["train_set"]
+        self.val_set = experiment_data["val_set"]
+        self.test_set = experiment_data["test_set"]
+
+    def train_dataloader(self):
+        return torch.utils.data.DataLoader(
+            self.train_set,
+            batch_size=self.hparams["batch_size"],
+            shuffle=True,
+            num_workers=get_num_cpus(),
+            pin_memory=True,
+        )
+
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(
+            self.val_set,
+            batch_size=self.hparams["batch_size"] * 2,
+            shuffle=False,
+            num_workers=get_num_cpus(),
+            pin_memory=True,
+        )
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(
+            self.test_set,
+            batch_size=self.hparams["batch_size"] * 2,
+            shuffle=False,
+            num_workers=get_num_cpus(),
+            pin_memory=True,
+        )
+
+    def __repr__(self):
+        return (
+            "DataModule:\n"
+            + str(self.train_set.__repr__())
+            + "\n"
+            + "Val: "
+            + str(self.val_set.__repr__())
+        )
