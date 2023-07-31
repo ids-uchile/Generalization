@@ -113,7 +113,7 @@ def create_mlp(in_size, hidden_sizes, out_size, lib="torch", key=None):
         model = create_mlp(in_size, hidden_sizes, out_size, key=key)
 
     elif lib == "torch":
-        from .torch import mlp
+        from .pytorch import mlp
 
         model = mlp(in_size, hidden_sizes, out_size)
 
@@ -146,7 +146,7 @@ def create_alexnet(weights=None, cifar=False, lib="torch", key=None):
         model = alexnet(key=key, cifar=cifar)
 
     elif lib == "torch":
-        from .torch import alexnet
+        from .pytorch import alexnet
 
         model = alexnet(weights=weights, cifar=cifar)
 
@@ -164,7 +164,7 @@ def create_inception(weights=None, cifar=False, small="False", lib="torch", key=
         model = inception(cifar=cifar, key=key)
 
     elif lib == "torch":
-        from .torch import inception
+        from .pytorch import inception
 
         model = inception(weights=weights, cifar=cifar)
     else:
