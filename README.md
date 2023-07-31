@@ -3,8 +3,9 @@
 >Reproducing results from the 2017 paper [1611.03530](https://arxiv.org/abs/1611.03530)
 
 ## This Repo contributes:
-- A modular approach for datasets with randomization tests
-- Reproduces original experiments
+- A modular approach to using datasets with randomization tests.
+- Implements all models described in the paper, both in Flax and Pytorch.
+- Reproduces original experiments. See this [report](https://wandb.ai/stepp1/generalization-2/reports/Understanding-Rethinking-Generalization-CIFAR10--Vmlldzo0NTA3Njcz).
 
 
 ## Contributions
