@@ -1,16 +1,10 @@
 from .builders import build_cifar10, create_corrupted_dataset
-from .corruptions import gaussian_pixels, random_labels, random_pixels, shuffled_pixels
+from .corruptions import _IMPORT_TABLE, get_randomization
 from .dataset import RandomizedDataset
 
 
 def available_corruptions():
-    return [
-        "gaussian_pixels",
-        "random_labels",
-        "random_pixels",
-        "partial_labels",
-        "shuffled_pixels",
-    ]
+    return list(_IMPORT_TABLE.keys())
 
 
 __all__ = [
@@ -18,8 +12,5 @@ __all__ = [
     "build_cifar10",
     "create_corrupted_dataset",
     "RandomizedDataset",
-    "gaussian_pixels",
-    "random_labels",
-    "random_pixels",
-    "shuffled_pixels",
+    "get_randomization",
 ]

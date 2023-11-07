@@ -23,133 +23,102 @@
 #   - We make use of the self.corruption_prob to determine the probability of corruption
 
 
-import torch
+import functools
+import importlib
+from typing import Callable, List
+
+from absl import logging
+
+_IMPORT_TABLE = {
+    "random_labels": "generalization.randomization.labels.random_labels",
+    "partial_labels": "generalization.randomization.labels.partial_labels",
+    "random_pixels": "generalization.randomization.inputs.random_pixels",
+    "shuffled_pixels": "generalization.randomization.inputs.shuffled_pixels",
+    "gaussian_pixels": "generalization.randomization.inputs.gaussian_pixels",
+}
 
 
-def random_labels(
-    img, target, corruption_prob, get_random_label, apply_corruption=False
-):
-    """
-    Randomizes the labels of the dataset.
+class RandomizationRegistry(object):
+    """Static class for keeping track of available datasets."""
+
+    _REGISTRY = {}
+
+    @classmethod
+    def add(cls, name: str, builder_fn: Callable):
+        """Add a randomization to the registry, i.e. register a randomization/corruption.
+
+        Args:
+          name: Randomization name (must be unique).
+          builder_fn: Function to be called to corruption a sample. Must accept
+            randomization-specific arguments and return a corrupted sample.
+
+        Raises:
+          KeyError: If the provided name is not unique.
+        """
+        if name in cls._REGISTRY:
+            raise KeyError(f"Randomization with name ({name}) already registered.")
+        cls._REGISTRY[name] = builder_fn
+
+    @classmethod
+    def get(cls, name: str) -> Callable:
+        """Get a Randomization from the registry by its name.
+
+        Args:
+          name: Randomization name.
+
+        Returns:
+          Randomization function that accepts randomization-specific parameters and
+          returns a corrupted sample.
+
+        Raises:
+          KeyError: If the randomization is not found.
+        """
+        if name not in cls._REGISTRY:
+            if name in _IMPORT_TABLE:
+                module = _IMPORT_TABLE[name]
+                importlib.import_module(module)
+                logging.info(
+                    "On-demand import of randomization (%s) from module (%s).",
+                    name,
+                    module,
+                )
+                if name not in cls._REGISTRY:
+                    raise KeyError(
+                        f"Imported module ({module}) did not register randomization"
+                        f"({name}). Please check that dataset names match."
+                    )
+            else:
+                raise KeyError(
+                    f"Unknown dataset ({name}). Did you import the randomization "
+                    f"module explicitly?"
+                )
+        return cls._REGISTRY[name]
+
+    @classmethod
+    def list(cls) -> List[str]:
+        """List registered randomizations."""
+        return list(cls._REGISTRY.keys())
+
+
+def add_randomization(name: str, *args, **kwargs):
+    """Decorator for shorthand randomization registdation."""
+
+    def inner(builder_fn: Callable) -> Callable:
+        RandomizationRegistry.add(name, functools.partial(builder_fn, *args, **kwargs))
+        return builder_fn
+
+    return inner
+
+
+def get_randomization(randomization_name: str) -> Callable:
+    """Maps dataset name to a dataset_builder.
+
+    API kept for compatibility of existing code with the RandomizationRegistry.
 
     Args:
-        img (torch.Tensor): Image tensor
-        target (torch.Tensor): Target tensor
-        corruption_prob (float): Probability of corruption
-        get_random_label (callable): Function that returns a random label
-        apply_corruption (bool): If True, the corruption is applied to the returned image
+      randomization_name: Randomization name.
+
+    Returns:
+      A corruption func.
     """
-    random_label = target
-    if torch.rand(1) <= corruption_prob:
-        random_label = get_random_label(target)
-
-        if apply_corruption:
-            target = random_label
-
-    return img, target, random_label
-
-
-def random_pixels(
-    img, target, corruption_prob, permutation_size, apply_corruption=False
-):
-    """
-    Applies a random permutation to the pixels of the image.
-
-    Args:
-        img (torch.Tensor): Image tensor
-        target (torch.Tensor): Target tensor
-        corruption_prob (float): Probability of corruption
-        permutation_size (int): Size of the permutation, e.g. 32x32 = 1024
-        apply_corruption (bool): If True, the corruption is applied to the returned image
-    """
-    # permutated idx are original indices
-    permutation_pixels = torch.arange(permutation_size)
-    c, h, w = img.size()
-
-    # check if the permutation size matches the image size
-    assert permutation_size == h * w, "Permutation size does not match image size"
-
-    if torch.rand(1) <= corruption_prob:
-        # choose different random permutation for each image
-        permutation_pixels = torch.randperm(permutation_size)
-
-        # apply it to the image
-        if apply_corruption:
-            img = apply_pixel_permutation(img, permutation_pixels)
-
-    return img, target, permutation_pixels
-
-
-def shuffled_pixels(img, target, corruption_prob, permutation, apply_corruption=False):
-    """
-    Applies the given permutation to the pixels of the image.
-
-    Args:
-        img (torch.Tensor): Image tensor
-        target (torch.Tensor): Target tensor
-        corruption_prob (float): Probability of corruption
-        permutation (torch.Tensor): Permutation of the pixels
-        apply_corruption (bool): If True, the corruption is applied to the returned image
-    """
-    # permutated idx are original indices
-    permutation_pixels = torch.arange(img.size(1) * img.size(2))
-    c, h, w = img.size()
-
-    # check if the permutation size matches the image size
-    assert permutation.size(0) == h * w, "Permutation size does not match image size"
-
-    if torch.rand(1) <= corruption_prob:
-        # choose different random permutation for each image
-        permutation_pixels = permutation
-
-        # apply it to the image
-        if apply_corruption:
-            img = apply_pixel_permutation(img, permutation_pixels)
-
-    return img, target, permutation_pixels
-
-
-def gaussian_pixels(
-    img, target, corruption_prob, apply_corruption=False, use_cifar=False
-):
-    c, w, h = img.size()
-
-    sampled = None
-
-    if torch.rand(1) <= corruption_prob:
-        if use_cifar:
-            from .utils import CIFAR10_CHANNEL_MEAN as mean
-            from .utils import CIFAR10_CHANNEL_STD as std
-        else:
-            from .utils import IMAGENET_CHANNEL_MEAN as mean
-            from .utils import IMAGENET_CHANNEL_STD as std
-        normal = torch.distributions.Normal(torch.tensor(mean), torch.tensor(std))
-        sampled = normal.sample((h, w)).permute(2, 0, 1).clamp(0, 255).type(torch.uint8)
-
-        if apply_corruption:
-            img = sampled
-
-    return img, target, sampled
-
-
-def apply_pixel_permutation(img, pixel_perm):
-    """
-    Applies the given permutation of the pixels to the image.
-    """
-    c, w, h = img.size()
-
-    permutation_as_img = pixel_perm.repeat(c, 1).view(c, -1).long()
-    permutated_img = img.view(c, -1).gather(1, permutation_as_img).view(c, h, w)
-    return permutated_img
-
-
-def undo_permutation(permuted_img, applied_pixel_perm):
-    """
-    Undoes the given permutation of the pixels to a permutated image.
-    """
-    c, w, h = permuted_img.size()
-
-    true_order = torch.empty_like(applied_pixel_perm)
-    true_order[applied_pixel_perm] = torch.arange(applied_pixel_perm.size(0))
-
-    return permuted_img.view(c, -1)[:, true_order].view(c, w, h)
+    return RandomizationRegistry.get(randomization_name)

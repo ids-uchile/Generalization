@@ -80,15 +80,6 @@ class RandomizedDataset(VisionDataset):
             root=None, transform=transform, target_transform=target_transform
         )
 
-        # apply_corruption and return_corruption cannot be both False
-        if (
-            not apply_corruption
-            and not return_corruption
-            and corruption_name is not None
-        ):
-            raise ValueError(
-                "Either apply_corruption or return_corruption must be True"
-            )
         if data is not None and targets is not None:
             self.data = data
             self.targets = targets
@@ -112,16 +103,11 @@ class RandomizedDataset(VisionDataset):
         self.train = train
         self.corruption_name = corruption_name
         self.corruption_prob = corruption_prob
-        self.apply_corruption = apply_corruption
-        self.return_corruption = return_corruption
-        self.kwargs = kwargs if kwargs is not None else {}
 
-        if self.train and self.corruption_name is not None:
-            self.setup_corruption_func()
-            if self.corruption_func is not None:
-                self.apply_corruptions()
-        else:
-            self.corruption_func = None
+        self.kwargs = kwargs if kwargs is not None else {}
+        self.corrupted = []
+        self.setup_corruption_func()
+        self.apply_corruptions()
 
     def setup_corruption_func(self):
         c, w, h = get_dimensions(open_data(self.data[0]))
@@ -139,10 +125,9 @@ class RandomizedDataset(VisionDataset):
             ].item()
 
             self.corruption_func = partial(
-                random_labels,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 get_random_label=self.get_random_label,
-                apply_corruption=self.apply_corruption,
             )
 
         elif self.corruption_name == "shuffled_pixels":
@@ -150,39 +135,35 @@ class RandomizedDataset(VisionDataset):
             self.pixel_permutation = torch.randperm(permutation_size)
 
             self.corruption_func = partial(
-                shuffled_pixels,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 permutation=self.pixel_permutation,
-                apply_corruption=self.apply_corruption,
             )
 
         elif self.corruption_name == "random_pixels":
             self.corruption_func = partial(
-                random_pixels,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 permutation_size=permutation_size,
-                apply_corruption=self.apply_corruption,
             )
         elif self.corruption_name == "gaussian_pixels":
             self.corruption_func = partial(
-                gaussian_pixels,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
-                apply_corruption=self.apply_corruption,
-                use_cifar=self.kwargs["use_cifar"],
+                use_cifar=True,
             )
 
         else:
-            self.corruption_func = None
+            self.corruption_func = lambda img, target, **kwargs: (img, target, False)
 
     def apply_corruptions(self):
-        self.corruptions = []
         for index in tqdm(range(len(self.data))):
             x = transforms.functional.to_tensor(open_data(self.data[index]))
             y = torch.tensor(self.targets[index])
 
-            x, y, corruption = self.corruption_func(x, y)
-            self.corruptions.append(corruption)
+            x, y, is_corrupt = self.corruption_func(x, y)
 
+            self.corrupted.append(is_corrupt)
             self.data[index] = transforms.functional.to_pil_image(x)
             self.targets[index] = y
 
@@ -190,16 +171,13 @@ class RandomizedDataset(VisionDataset):
         x = transforms.functional.to_tensor(open_data(self.data[index]))
         y = torch.as_tensor(self.targets[index])
 
-        if self.corruption_func is not None:
-            corruption = self.corruptions[index]
-
         if self.transform is not None:
             x = self.transform(x)
 
         if self.target_transform is not None:
             y = self.target_transform(y)
 
-        return (x, y, index, corruption) if self.return_corruption else (x, y, index)
+        return (x, y, index)
 
     def __len__(self):
         return len(self.data)

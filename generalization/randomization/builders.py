@@ -12,7 +12,7 @@ def create_corrupted_dataset(
     corruption_name,
     corruption_prob=0.0,
     train=True,
-    root="./data/cifar10",
+    root="/data/cifar10",
     apply_corruption=False,
     return_corruption=False,
     transform=None,
@@ -60,7 +60,8 @@ def build_cifar10(
         dataset_name="cifar10",
         train=False,
         root=root,
-        corruption_name=None,
+        corruption_name="normal_labels",
+        apply_corruption=True,
         transform=base_transforms,
     )
     random_idxs = np.random.choice(len(test_dset), 10)

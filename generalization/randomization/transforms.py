@@ -15,7 +15,7 @@ from .utils import (
 def get_cifar10_transforms():
     return transforms.Compose(
         [
-            transforms.CenterCrop(28),
+            transforms.ToTensor(),
             transforms.Normalize(
                 mean=CIFAR10_NORMALIZE_MEAN, std=CIFAR10_NORMALIZE_STD
             ),
