@@ -84,11 +84,10 @@ class ModelFactory:
             self.key = key
 
         models = {
-            # "resnet18": self.create_model("resnet18", cifar=True),
+            "resnet18": self.create_model("resnet18", cifar=True),
             # "resnet34": self.create_model("resnet34", cifar=True),
             "alexnet": self.create_model("alexnet", cifar=True),
             "inception": self.create_model("inception", cifar=True),
-            "mlp_1x512": self.create_model("mlp_1x512"),
             "mlp_3x512": self.create_model("mlp_3x512"),
         }
         return models if model_name is None else {model_name: models[model_name]}
@@ -97,7 +96,6 @@ class ModelFactory:
         self.lib = lib or self.lib
         self.key = key
         models = {
-            "alexnet": self.create_model("alexnet"),
             "inception": self.create_model("inception"),
             "resnet18": self.create_model("resnet18"),
             "resnet34": self.create_model("resnet34"),
@@ -128,10 +126,10 @@ def create_resnet(resnet_size=18, weights=None, cifar=False, lib="torch", key=No
         raise NotImplementedError
 
     elif lib == "torch":
-        raise NotImplementedError
-        # from .torch import resnet
+        # raise NotImplementedError
+        from .pytorch import resnet
 
-        # model = resnet(resnet_size=resnet_size, weights=weights, cifar=cifar)
+        model = resnet(resnet_size=resnet_size, weights=weights, cifar=cifar)
 
     else:
         raise ValueError(f"Unknown library: {lib}")

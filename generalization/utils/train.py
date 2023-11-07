@@ -1,13 +1,16 @@
-import os
 import time
+from pathlib import Path
 
 import lightning as L
+import ml_collections
+import numpy as np
 import torch
+import wandb
+import yaml
 from generalization.models import get_cifar_models
-from generalization.randomization import available_corruptions, build_cifar10
-from generalization.utils import build_experiment
-from lightning.pytorch.loggers import WandbLogger
-from model import LitModel
+from generalization.randomization import available_corruptions
+from lightning.pytorch.loggers import CSVLogger, WandbLogger
+from model import LitDataModule, LitModel
 
 DEFAULT_PARAMS = {
     "seed": 88,
@@ -19,96 +22,111 @@ DEFAULT_PARAMS = {
 }
 
 
-def run_one_experiment(model, train_loader, val_loader, test_loader, hparams):
-    logger = WandbLogger(
-        name=f"{hparams['model_name']}-{hparams['corrupt_prob']}",
-        project="generalization-dense",
-        log_model=True,
-        save_dir="logs",
-        # version="1",
-        id=f"{hparams['model_name']}-{hparams['corrupt_name']}-{hparams['corrupt_prob']}",
-        group=f"{hparams['corrupt_name']}",
-        tags=[hparams["model_name"], hparams["corrupt_name"]],
-    )
-
-    ckpt = L.pytorch.callbacks.ModelCheckpoint(
-        dirpath=os.path.join("checkpoints", hparams["model_name"]),
-        filename=f"{hparams['corrupt_name']}-{hparams['corrupt_prob']}"
-        + "-{epoch:02d}-{val_loss:.2f}",
-        save_top_k=-1,
-        monitor="val/loss",
-    )
-
-    trainer = L.Trainer(
-        max_epochs=hparams["epochs"],
-        logger=logger,
-        default_root_dir="logs",
-        check_val_every_n_epoch=hparams["val_every"],
-    )
-    pl_model = LitModel(model, hparams=hparams)
+def fit(trainer, model, datamodule):
+    torch.set_float32_matmul_precision(precision="medium")
     start_time = time.time()
-    trainer.fit(
-        pl_model,
-        train_loader,
-        val_loader,
-    )
+    trainer.fit(model, datamodule)
     print(f"Training took {time.time() - start_time:.2f} seconds")
 
-    trainer.test(pl_model, test_loader)
+    return trainer, model, datamodule
 
-    # assure that logger process has exited
-    trainer.logger.experiment.finish()
+
+def run_one_experiment(model, datamodule, hparams, corrupt_prob=0.0):
+    log_dir = Path("logs/dense")
+    project_name = "generalization-dense"
+
+    experiment_name = f"{hparams.model_name}-{hparams.corrupt_name}-{corrupt_prob}"
+    timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
+    hparams.name = experiment_name
+    hparams.id = f"{experiment_name}-{timestamp}"
+    hparams.save_dir = log_dir / project_name / experiment_name
+    hparams.save_dir.mkdir(parents=True, exist_ok=True)
+
+    # add datetime to avoid overwriting existing experiments
+    logger = WandbLogger(
+        name=experiment_name,
+        save_dir=hparams.save_dir,
+        offline=hparams.offline,
+        project=project_name,
+        id=hparams.id,
+        tags=list(
+            map(
+                str,
+                [hparams.model_name, hparams.corrupt_name, corrupt_prob],
+            )
+        ),
+    )
+
+    logger_csv = CSVLogger(save_dir=f"{log_dir}/{project_name}", name=experiment_name)
+
+    trainer = L.Trainer(
+        max_epochs=hparams.epochs,
+        logger=[logger, logger_csv],
+        default_root_dir=log_dir,
+        check_val_every_n_epoch=hparams.val_every,
+    )
+    pl_model = LitModel(model, hparams=hparams)
+
+    trainer, pl_model, datamodule = fit(trainer, pl_model, datamodule)
+
+    trainer.test(pl_model, datamodule.test_dataloader())
+
+    # assure that wb logger process has exited
+    try:
+        trainer.logger.experiment.finish()
+        wandb.finish()
+    except AttributeError:
+        pass
 
     return trainer, pl_model
 
 
-def main(
-    corrupt_name: str = "all", model_name: str = "all", hparams=DEFAULT_PARAMS
-) -> None:
+def main(hparams=DEFAULT_PARAMS) -> None:
     """
     Run all experiments for given corruption/model combination.
 
     Parameters
     ----------
-    corrupt_name : str  (default: "all")
-        Corruption name to run experiments for. If "all", run all corruptions.
-
-    model_name : str  (default: "all")
-        Model name to run experiments for. If "all", run all models.
+    hparams : dict or ml_collections.ConfigDict
+        Dict of hyperparameters (seed, batch_size, learning_rate, epochs, val_every, ...)
+        See examples in the configs/ directory
 
     Examples
     --------
-    >>> main(corrupt_name="all", model_name="all")
-        # Run all experiments for all corruptions and all models
-
-    >>> main(corrupt_name="random_labels", model_name="alexnet")
-        # Run experiment for random labels and alexnet
     """
 
     all_corruptions = available_corruptions()
-    if corrupt_name != "all":
-        all_corruptions = [corrupt_name]
+    if hparams.corrupt_name != "all":
+        all_corruptions = [hparams.corrupt_name]
 
     for corrupt_name in all_corruptions:
         print(f"Corruption: {corrupt_name}")
 
-        corrup_probs = (
-            [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9]
-            if not "random" in corrupt_name
-            else [1]
-        )
+        if "normal_labels" in corrupt_name:
+            corrupt_probs = [0.0]
+        elif corrupt_name in available_corruptions():
+            assert hparams.corrupt_prob != [""]
+            corrupt_probs = hparams.corrupt_prob
+        else:
+            raise ValueError(f"Please specify valid corruption name: {corrupt_name}")
 
-        for corrupt_prob in corrup_probs:
+        dataset_size = -1
+        for corrupt_prob in corrupt_probs:
             print(f"Corruption prob: {corrupt_prob}")
-            experiment = build_experiment(
-                corrupt_prob=corrupt_prob,
-                corrupt_name=corrupt_name,
-                batch_size=hparams["batch_size"],
-            )
+            dm = LitDataModule(hparams=hparams, corrupt_prob=corrupt_prob)
+            if dataset_size == -1:
+                dm.setup()
+                dataset_size = len(dm.train_dataloader().dataset)
 
-            models = get_cifar_models(lib="torch")
-            if model_name != "all":
-                models = {model_name: get_cifar_models(lib="torch")[model_name]}
+            if hparams.model_name != "all" and isinstance(hparams.model_name, str):
+                models = get_cifar_models(model_name=hparams.model_name, lib="torch")
+            elif hparams.model_name != "all" and isinstance(hparams.model_name, list):
+                models = {
+                    model_name: get_cifar_models(model_name=model_name, lib="torch")
+                    for model_name in hparams.model_name
+                }
+            else:
+                models = get_cifar_models(lib="torch")
 
             for model_name, model in models.items():
                 print(f"Model: {model_name}")
@@ -116,19 +134,19 @@ def main(
                 MODEL_NAME = model_name
                 CORRUPT_NAME = corrupt_name
                 CORRUPT_PROB = corrupt_prob
+
                 hparams.update(
                     {
                         "model_name": MODEL_NAME,
                         "corrupt_name": CORRUPT_NAME,
-                        "corrupt_prob": CORRUPT_PROB,
+                        "dataset_size": dataset_size,
                     }
                 )
                 trainer, pl_model = run_one_experiment(
                     model,
-                    experiment[corrupt_name]["train_loader"],
-                    experiment[corrupt_name]["val_loader"],
-                    experiment[corrupt_name]["test_loader"],
+                    dm,
                     hparams,
+                    corrupt_prob=CORRUPT_PROB,
                 )
 
 
@@ -148,15 +166,20 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--corrupt_name", type=str, default="all")
+    parser.add_argument("--config", type=str, default="")
+    parser.add_argument("--corrupt_name", type=str, default="gaussian_pixels")
+    parser.add_argument("--n_classes", type=int, default=10)
     parser.add_argument("--model_name", type=str, default="all")
     parser.add_argument("--batch_size", type=int, default=DEFAULT_PARAMS["batch_size"])
     parser.add_argument("--epochs", type=int, default=DEFAULT_PARAMS["epochs"])
     parser.add_argument("--seed", type=int, default=DEFAULT_PARAMS["seed"])
     parser.add_argument("--lr", type=float, default=DEFAULT_PARAMS["learning_rate"])
     parser.add_argument("--val_every", type=int, default=DEFAULT_PARAMS["val_every"])
+    parser.add_argument("--subset", type=float, default=1.0)
+    parser.add_argument("--test", action="store_true", default=False)
+    parser.add_argument("--debug", action="store_true", default=False)
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     SEED = args.seed
     BATCH_SIZE = args.batch_size
@@ -167,16 +190,35 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("medium")
     L.seed_everything(SEED)
 
-    hparams = {
-        "seed": SEED,
-        "batch_size": BATCH_SIZE,
-        "learning_rate": LEARNING_RATE,
-        "epochs": EPOCHS,
-        "val_every": VAL_EVERY,
-    }
+    hparams = ml_collections.ConfigDict()
+    hparams.update(
+        {
+            "seed": SEED,
+            "batch_size": BATCH_SIZE,
+            "learning_rate": LEARNING_RATE,
+            "epochs": EPOCHS,
+            "val_every": VAL_EVERY,
+            "corrupt_name": args.corrupt_name,
+            "model_name": args.model_name,
+            "n_classes": args.nclasses,
+            "offline": False,
+            "debug": False,
+        }
+        if args.config == ""
+        else yaml.load(open(args.config, "r"), Loader=yaml.FullLoader)
+    )
+    hparams.update({"subset": args.subset, "offline": False, "debug": args.debug})
 
-    is_specific_run = check_args(args)
-    if is_specific_run:
-        main(args.corrupt_name, args.model_name, hparams)
-    else:
-        main()
+    if args.test:
+        hparams.update(
+            {
+                "epochs": 5,
+                "corrupt_prob": [0.5]
+                if args.corrupt_name != "normal_labels"
+                else [0.0],
+                "debug": True,
+                "offline": True,
+            }
+        )
+
+    main(hparams)
