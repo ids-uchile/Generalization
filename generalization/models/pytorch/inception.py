@@ -81,8 +81,11 @@ class InceptionSmall(nn.Module):
         self.mean_pool = nn.AdaptiveAvgPool2d((7, 7))
 
         self.fc = nn.Sequential(
+            nn.Dropout(),
             nn.Linear(16464, 384),
+            nn.ReLU(),
             nn.Linear(384, 192),
+            nn.ReLU(),
             nn.Linear(192, 10),
         )
 
