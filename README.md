@@ -3,8 +3,9 @@
 >Reproducing results from the 2017 paper [1611.03530](https://arxiv.org/abs/1611.03530)
 
 ## This Repo contributes:
-- A modular approach for datasets with randomization tests
-- Reproduces original experiments
+- A modular approach to using datasets with randomization tests.
+- Implements all models described in the paper, both in Flax and Pytorch.
+- Reproduces original experiments. See this [report](https://wandb.ai/stepp1/generalization-2/reports/Understanding-Rethinking-Generalization-CIFAR10--Vmlldzo0NTA3Njcz).
 
 
 ## Contributions
@@ -44,6 +45,7 @@ To install the latest release from PyPI:
 pip install -U ids-generalization
 ```
 
+Note that this package requires Jax to be installed separately. See [jax](https://github.com/google/jax/blob/main/README.md) repository for instructions.
 
 ### Latest version from GitHub
 
@@ -51,4 +53,11 @@ To pull and install the latest commit from this repository, along with its Pytho
 
 ```bash
 pip install git+https://github.com/ids-uchile/Rethinking-Generalization.git
+```
+
+## Jax and Pytorch
+If you want to try both Jax and Pytorch's versions install first [jax](https://github.com/google/jax), [Equinox](https://github.com/patrick-kidger/equinox) and then for Pytorch:
+
+```bash
+mamba install fastai -c fastai
 ```

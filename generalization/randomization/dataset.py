@@ -28,66 +28,15 @@ import warnings
 from functools import partial
 
 import torch
-from PIL import Image
 from torchvision import transforms
+from torchvision.datasets import VisionDataset
+from tqdm import tqdm
 
 from .corruptions import *
-from .utils import get_dimensions
+from .utils import get_dimensions, open_data
 
 
-class TensorTransformDataset(torch.utils.data.Dataset):
-    """TensorDataset with support of transforms."""
-
-    def __init__(
-        self, *tensors, data_idx=0, target_idx=1, transform=None, target_transform=None
-    ):
-        # check if *tensors is tensor, if not add ToTensor() to transform and target_transform
-        if not all([isinstance(tensor, torch.Tensor) for tensor in tensors]):
-            if transform is None:
-                transform = transforms.ToTensor()
-            else:
-                transform = transforms.Compose([transform, transforms.ToTensor()])
-
-        # check if tensors are of same length
-        if not all([len(tensors[0]) == len(tensor) for tensor in tensors]):
-            raise ValueError("All tensors must be of same length")
-
-        self.tensors = tensors
-
-        self.data = tensors[data_idx]
-        self.targets = tensors[target_idx]
-
-        self.data_idx = data_idx
-        self.target_idx = target_idx
-
-        self.transform = transform
-        self.target_transform = target_transform
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-
-        Returns:
-            tuple: (*tensors) with transformed data and target
-        """
-
-        out_tuple = []
-        for i, tensor in enumerate(self.tensors):
-            if i == self.data_idx and self.transform is not None:
-                x = self.transform(tensor[index])
-                out_tuple.append(x)
-
-            elif i == self.target_idx and self.target_transform is not None:
-                y = self.target_transform(tensor[index])
-                out_tuple.append(y)
-            else:
-                out_tuple.append(tensor[index])
-
-        return tuple(out_tuple)
-
-
-class RandomizedDataset(torch.utils.data.Dataset):
+class RandomizedDataset(VisionDataset):
     """Dataset that applies Randomization Attacks as shown in https://arxiv.org/abs/1611.03530.
 
     Args:
@@ -95,8 +44,9 @@ class RandomizedDataset(torch.utils.data.Dataset):
         data (torch.Tensor): Data tensor
         targets (torch.Tensor): Target tensor
         corruption_name (str): Name of the corruption to be applied
-        corruption_prob (float): Probability of corruption
+        corruption_probtarget_idx (float): Probability of corruption
         apply_corruption (bool): If True, the corruption is applied to the returned image
+        return_corruption (bool): If True, the corruption is returned along with the image
         train (bool): If True, the dataset is used for training
         transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version. E.g, ``transforms.RandomCrop``
         target_transform (callable, optional): A function/transform that takes in the target and transforms it.
@@ -114,42 +64,54 @@ class RandomizedDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        dataset=None,
         data=None,
         targets=None,
+        dataset=None,
         corruption_name=None,
         corruption_prob=0.0,
         apply_corruption=False,
+        return_corruption=False,
         train=True,
         transform=None,
         target_transform=None,
+        **kwargs,
     ):
+        super().__init__(
+            root=None, transform=transform, target_transform=target_transform
+        )
+
+        if data is not None and targets is not None:
+            self.data = data
+            self.targets = targets
+            self.classes = None
+            self.class_to_idx = None
+            self.original_repr = "RandomizedDataset"
+
         if dataset is not None and isinstance(dataset, torch.utils.data.Dataset):
-            data = dataset.data
-            targets = dataset.targets
+            self.data = dataset.data
+            self.targets = dataset.targets
             self.classes = dataset.classes
             self.class_to_idx = dataset.class_to_idx
             self.original_repr = repr(dataset)
-
-        if data is not None and targets is not None:
-            self.dataset = TensorTransformDataset(
-                data, targets, transform=transform, target_transform=target_transform
-            )
 
         else:
             raise ValueError(
                 "Either dataset or data+targets must be provided as arguments"
             )
 
+        self.indices = list(range(len(self.data)))
         self.train = train
         self.corruption_name = corruption_name
         self.corruption_prob = corruption_prob
-        self.apply_corruption = apply_corruption
 
+        self.kwargs = kwargs if kwargs is not None else {}
+        self.corrupted = []
         self.setup_corruption_func()
+        self.apply_corruptions()
 
     def setup_corruption_func(self):
-        c, w, h = get_dimensions(Image.fromarray(self.dataset.data[0]))
+        c, w, h = get_dimensions(open_data(self.data[0]))
+        permutation_size = h * w * c // c
 
         self.corruption_checks()
 
@@ -163,51 +125,62 @@ class RandomizedDataset(torch.utils.data.Dataset):
             ].item()
 
             self.corruption_func = partial(
-                random_labels,
-                train=self.train,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 get_random_label=self.get_random_label,
-                apply_corruption=self.apply_corruption,
             )
-            # TODO: maybe check https://discuss.pytorch.org/t/chose-random-element-from-tensor-excluding-certain-index/42285
 
         elif self.corruption_name == "shuffled_pixels":
             # we cannot assume correct order [*,C,H,W] => we want to shuffle pixels in H,W
-            self.pixel_permutation = torch.randperm(h * w * c // c)
+            self.pixel_permutation = torch.randperm(permutation_size)
+
             self.corruption_func = partial(
-                shuffled_pixels,
-                train=self.train,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 permutation=self.pixel_permutation,
-                apply_corruption=self.apply_corruption,
             )
 
         elif self.corruption_name == "random_pixels":
-            # we cannot assume correct order [*,C,H,W] => we want to shuffle pixels in H,W
-            permutation_size = h * w * c // c
             self.corruption_func = partial(
-                random_pixels,
-                train=self.train,
+                get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 permutation_size=permutation_size,
-                apply_corruption=self.apply_corruption,
             )
         elif self.corruption_name == "gaussian_pixels":
-            self.corruption_func = self.gaussian_image
+            self.corruption_func = partial(
+                get_randomization(self.corruption_name),
+                corruption_prob=self.corruption_prob,
+                use_cifar=True,
+            )
 
         else:
-            self.corruption_func = None
+            self.corruption_func = lambda img, target, **kwargs: (img, target, False)
+
+    def apply_corruptions(self):
+        for index in tqdm(range(len(self.data))):
+            x = transforms.functional.to_tensor(open_data(self.data[index]))
+            y = torch.tensor(self.targets[index])
+
+            x, y, is_corrupt = self.corruption_func(x, y)
+
+            self.corrupted.append(is_corrupt)
+            self.data[index] = transforms.functional.to_pil_image(x)
+            self.targets[index] = y
 
     def __getitem__(self, index):
-        out = self.dataset[index]
+        x = transforms.functional.to_tensor(open_data(self.data[index]))
+        y = torch.as_tensor(self.targets[index])
 
-        if self.corruption_func is not None:
-            out = self.corruption_func(*out)
+        if self.transform is not None:
+            x = self.transform(x)
 
-        return out
+        if self.target_transform is not None:
+            y = self.target_transform(y)
+
+        return (x, y, index)
 
     def __len__(self):
-        return len(self.dataset.tensors[0])
+        return len(self.data)
 
     def __repr__(self):
         return self.original_repr + self.extra_repr()
@@ -215,6 +188,12 @@ class RandomizedDataset(torch.utils.data.Dataset):
     def extra_repr(self) -> str:
         corruption = self.corruption_name
         return f", Corruption: {corruption}"
+
+    def replace_transform(self, transform, target_transform=None):
+        self.transform = transform
+
+        if target_transform is not None:
+            self.target_transform = target_transform
 
     def corruption_checks(self):
         is_full_random = self.corruption_name in ["random_labels", "random_pixels"]
@@ -226,8 +205,9 @@ class RandomizedDataset(torch.utils.data.Dataset):
                 )
             self.corruption_prob = 1.0
         else:
+            is_normal = self.corruption_name == "normal_labels"
             not_using_corruption_prob = self.corruption_prob == 0.0
-            if not_using_corruption_prob:
+            if not_using_corruption_prob and not is_normal:
                 warnings.warn(
                     "corruption_prob is not provided, using default value of 0.0"
                 )

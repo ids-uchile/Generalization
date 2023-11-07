@@ -1,0 +1,16 @@
+batch_size: 512
+model_name: alexnet
+corrupt_name: partial_labels
+corrupt_prob: [0.05, 0.15, 0.3, 0.4]
+dataset_name: cifar10
+epochs: 30
+gradient_clipping: true
+learning_rate: 0.1
+log_dir: logs
+lr: 0.04
+lr_scheduler: false
+momentum: 0.9
+n_classes: 10
+seed: 88
+val_every: 1
+weight_decay: 0.0
