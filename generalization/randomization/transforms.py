@@ -11,7 +11,6 @@ from .utils import (
     IMAGENET_NORMALIZE_STD,
 )
 
-
 def get_cifar10_transforms():
     return transforms.Compose(
         [
