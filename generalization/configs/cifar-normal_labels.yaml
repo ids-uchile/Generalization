@@ -1,0 +1,15 @@
+batch_size: 512
+model_name: all
+corrupt_name: normal_labels
+corrupt_prob: [0.0]
+dataset_name: cifar10
+epochs: 30
+gradient_clipping: true
+learning_rate: 0.01
+momentum: 0.9
+lr_scheduler: false
+log_dir: logs
+n_classes: 10
+seed: 88
+val_every: 1
+weight_decay: 0.0

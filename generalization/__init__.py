@@ -1,6 +1,7 @@
 from torchvision.datasets import CIFAR10
 
 from .randomization import RandomizedDataset
+from .utils.data import DEFAULT_PARAMS, build_experiment, get_num_cpus
 
 """
 This file contains the functions to load the datasets.

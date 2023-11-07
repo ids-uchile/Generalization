@@ -3,7 +3,6 @@ Check virtual environment and CUDA availability
 
 - Checks if torch is available
 - Checks if jax is available
-- Checks if equinox is available
 - Checks if torch + CUDA is available
 - Checks if jax + GPU is available
 """
@@ -23,16 +22,11 @@ def test_jax():
         print("Jax is not available")
 
 
-def test_equinox():
+def test_flax():
     try:
-        import equinox
+        import flax
     except ImportError:
-        print("Equinox is not available")
-
-    try:
-        import eqxvision
-    except ImportError:
-        print("Eqxvision is not available")
+        print("Flax is not available")
 
 
 def test_torch_cuda():
