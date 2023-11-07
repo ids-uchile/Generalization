@@ -11,10 +11,11 @@ from .utils import (
     IMAGENET_NORMALIZE_STD,
 )
 
+
 def get_cifar10_transforms():
     return transforms.Compose(
         [
-            transforms.ToTensor(),
+            # transforms.ToTensor(),
             transforms.Normalize(
                 mean=CIFAR10_NORMALIZE_MEAN, std=CIFAR10_NORMALIZE_STD
             ),
@@ -25,6 +26,7 @@ def get_cifar10_transforms():
 def get_imagenet_transforms():
     return transforms.Compose(
         [
+            # transforms.ToTensor(),
             transforms.Resize((299, 299)),
             transforms.Normalize(
                 mean=IMAGENET_NORMALIZE_MEAN, std=IMAGENET_NORMALIZE_STD

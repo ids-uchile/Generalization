@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-def compute_scores(logits, y, num_classes=10):
+def compute_el2n_scores(logits, y, num_classes=10):
     """Compute EL2N scores.
 
     Parameters:
