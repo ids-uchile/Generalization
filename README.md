@@ -37,6 +37,10 @@ We run our experiments with the following modifications of the labels and input 
 
 ## Installation
 
+First, install [torch](https://pytorch.org/get-started/locally/) and [torchvision](https://pytorch.org/get-started/locally/). Then, install the package using pip:
+
+
+
 ### From PyPI
 
 To install the latest release from PyPI:

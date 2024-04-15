@@ -8,10 +8,9 @@ From the original paper (adapted):
 Author: Stepp1
 """
 
-
 from functools import partial
 
-import jax
+JAX_ERROR = NotImplementedError("JAX models will not be implemented.")
 
 
 class ModelFactory:
@@ -39,14 +38,17 @@ class ModelFactory:
             "inception": partial(create_inception, lib="torch"),
         }
 
+        try:
+            assert self.lib != "jax"
+        except AssertionError:
+            raise JAX_ERROR
+
     def create_model(self, model_type: str, lib: str = None, **kwargs):
         self.lib = lib or self.lib
         if self.lib == "jax":
-            raise NotImplementedError
-
+            raise JAX_ERROR
         elif self.lib == "torch":
             model = self.model_creators_torch[model_type](**kwargs)
-
         else:
             raise ValueError(f"Unknown library: {self.lib}")
 
@@ -77,12 +79,11 @@ def create_mlp(
     in_size: int, hidden_sizes: int, out_size: int, lib: str = "torch", key=None
 ):
     if lib == "jax":
-        raise NotImplementedError
+        raise JAX_ERROR
     elif lib == "torch":
         from .pytorch import mlp
 
         model = mlp(in_size, hidden_sizes, out_size)
-
     else:
         raise ValueError(f"Unknown library: {lib}")
 
@@ -96,13 +97,11 @@ def create_resnet(
     lib: str = "torch",
 ):
     if lib == "jax":
-        raise NotImplementedError
-
+        raise JAX_ERROR
     elif lib == "torch":
         from .pytorch import resnet
 
         model = resnet(resnet_size=resnet_size, weights=weights, cifar=cifar)
-
     else:
         raise ValueError(f"Unknown library: {lib}")
 
@@ -111,13 +110,11 @@ def create_resnet(
 
 def create_alexnet(weights=None, cifar=False, lib="torch"):
     if lib == "jax":
-        raise NotImplementedError
-
+        raise JAX_ERROR
     elif lib == "torch":
         from .pytorch import alexnet
 
         model = alexnet(weights=weights, cifar=cifar)
-
     else:
         raise ValueError(f"Unknown library: {lib}")
 
@@ -128,7 +125,6 @@ def create_inception(weights=None, cifar=False, small="False", lib="torch"):
     cifar = small or cifar
     if lib == "jax":
         raise NotImplementedError
-
     elif lib == "torch":
         from .pytorch import inception
 

@@ -44,9 +44,7 @@ class RandomizedDataset(VisionDataset):
         data (torch.Tensor): Data tensor
         targets (torch.Tensor): Target tensor
         corruption_name (str): Name of the corruption to be applied
-        corruption_probtarget_idx (float): Probability of corruption
-        apply_corruption (bool): If True, the corruption is applied to the returned image
-        return_corruption (bool): If True, the corruption is returned along with the image
+        corruption_prob (float): Probability of corruption
         train (bool): If True, the dataset is used for training
         transform (callable, optional): A function/transform that takes in an PIL image and returns a transformed version. E.g, ``transforms.RandomCrop``
         target_transform (callable, optional): A function/transform that takes in the target and transforms it.
@@ -69,16 +67,13 @@ class RandomizedDataset(VisionDataset):
         dataset=None,
         corruption_name=None,
         corruption_prob=0.0,
-        apply_corruption=False,
-        return_corruption=False,
         train=True,
         transform=None,
         target_transform=None,
         **kwargs,
     ):
         super().__init__(
-            root=None, transform=transform, target_transform=target_transform
-        )
+            root=None, transform=transform, target_transform=target_transform)
 
         if data is not None and targets is not None:
             self.data = data
@@ -87,7 +82,8 @@ class RandomizedDataset(VisionDataset):
             self.class_to_idx = None
             self.original_repr = "RandomizedDataset"
 
-        if dataset is not None and isinstance(dataset, torch.utils.data.Dataset):
+        if dataset is not None and isinstance(dataset,
+                                              torch.utils.data.Dataset):
             self.data = dataset.data
             self.targets = dataset.targets
             self.classes = dataset.classes
@@ -96,8 +92,7 @@ class RandomizedDataset(VisionDataset):
 
         else:
             raise ValueError(
-                "Either dataset or data+targets must be provided as arguments"
-            )
+                "Either dataset or data+targets must be provided as arguments")
 
         self.indices = list(range(len(self.data)))
         self.train = train
@@ -121,8 +116,7 @@ class RandomizedDataset(VisionDataset):
 
             # given a permutation and the true label, return a corrupted label
             self.get_random_label = lambda true_label: self.label_permutation[
-                true_label
-            ].item()
+                true_label].item()
 
             self.corruption_func = partial(
                 get_randomization(self.corruption_name),
@@ -154,7 +148,8 @@ class RandomizedDataset(VisionDataset):
             )
 
         else:
-            self.corruption_func = lambda img, target, **kwargs: (img, target, False)
+            self.corruption_func = lambda img, target, **kwargs: (img, target,
+                                                                  False)
 
     def apply_corruptions(self):
         for index in tqdm(range(len(self.data))):
@@ -196,7 +191,9 @@ class RandomizedDataset(VisionDataset):
             self.target_transform = target_transform
 
     def corruption_checks(self):
-        is_full_random = self.corruption_name in ["random_labels", "random_pixels"]
+        is_full_random = self.corruption_name in [
+            "random_labels", "random_pixels"
+        ]
         if is_full_random:
             check_corrupt_prob = not self.corruption_prob in [0.0, 1.0]
             if check_corrupt_prob:
