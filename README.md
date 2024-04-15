@@ -40,7 +40,6 @@ We run our experiments with the following modifications of the labels and input 
 First, install [torch](https://pytorch.org/get-started/locally/) and [torchvision](https://pytorch.org/get-started/locally/). Then, install the package using pip:
 
 
-
 ### From PyPI
 
 To install the latest release from PyPI:
@@ -49,19 +48,10 @@ To install the latest release from PyPI:
 pip install -U ids-generalization
 ```
 
-Note that this package requires Jax to be installed separately. See [jax](https://github.com/google/jax/blob/main/README.md) repository for instructions.
-
 ### Latest version from GitHub
 
 To pull and install the latest commit from this repository, along with its Python dependencies:
 
 ```bash
 pip install git+https://github.com/ids-uchile/Rethinking-Generalization.git
-```
-
-## Jax and Pytorch
-If you want to try both Jax and Pytorch's versions install first [jax](https://github.com/google/jax), [Equinox](https://github.com/patrick-kidger/equinox) and then for Pytorch:
-
-```bash
-mamba install fastai -c fastai
 ```

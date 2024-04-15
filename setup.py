@@ -35,8 +35,8 @@ setup(
     url="https://github.com/ids-uchile/Generalization",
     license="BSD-3-Clause",
     packages=find_packages(exclude=["tests*"]),
-    # install_requires=requirements,
-    # dependency_links=dependency_links,
+    install_requires=requirements,
+    dependency_links=dependency_links,
     include_package_data=True,
     extras_require={"dev": ["pytest", "black", "flake8", "isort"]},
 )
