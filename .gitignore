@@ -1,5 +1,6 @@
 data/
 logs/
+log_2/
 __pycache__/
 dist/
 build/
@@ -12,7 +13,8 @@ cifar-10-python.tar.gz
 .DS_Store
 wandb/
 artifacts/
+scratch*
+*.ipynb
 
-requirements.txt
 tests/
 viz.py

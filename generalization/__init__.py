@@ -1,7 +1,9 @@
-from torchvision.datasets import CIFAR10
-
-from .randomization import RandomizedDataset
-from .utils.data import DEFAULT_PARAMS, build_experiment, get_num_cpus
+from .randomization import (
+    RandomizedDataset,
+    create_corrupted_dataset,
+    get_randomization,
+)
+from .utils.data import seed_everything
 
 """
 This file contains the functions to load the datasets.
@@ -15,7 +17,7 @@ corruption_name must be one of the following:
 "shuffled_pixels"
 """
 
-corruptions = [
+CORRUPTIONS = [
     "random_labels",
     "partial_labels",
     "gaussian_pixels",
@@ -23,12 +25,4 @@ corruptions = [
     "shuffled_pixels",
 ]
 
-
-def load_randomized_cifar10(corruption_name, corruption_prob=0.3, train=True):
-    return RandomizedDataset(
-        CIFAR10(root="./data/cifar10", download=True, train=train),
-        corruption_name=corruption_name,
-        corruption_prob=corruption_prob,
-        apply_corruption=False,
-        train=train,
-    )
+RANDOMIZATIONS = CORRUPTIONS
