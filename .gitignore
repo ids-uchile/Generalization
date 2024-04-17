@@ -1,6 +1,6 @@
 data/
 logs/
-log_2/
+generalization/logs_2/
 __pycache__/
 dist/
 build/
