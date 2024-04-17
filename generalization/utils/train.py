@@ -1,16 +1,15 @@
 import time
 from pathlib import Path
 
-import lightning as L
 import ml_collections
-import numpy as np
+import pytorch_lightning as pl
 import torch
 import wandb
 import yaml
 from generalization.models import get_cifar_models
 from generalization.randomization import available_corruptions
-from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from model import LitDataModule, LitModel
+from pytorch_lightning.loggers import CSVLogger, WandbLogger
 
 DEFAULT_PARAMS = {
     "seed": 88,
@@ -59,7 +58,7 @@ def run_one_experiment(model, datamodule, hparams, corrupt_prob=0.0):
 
     logger_csv = CSVLogger(save_dir=f"{log_dir}/{project_name}", name=experiment_name)
 
-    trainer = L.Trainer(
+    trainer = pl.Trainer(
         max_epochs=hparams.epochs,
         logger=[logger, logger_csv],
         default_root_dir=log_dir,
@@ -119,14 +118,32 @@ def main(hparams=DEFAULT_PARAMS) -> None:
                 dataset_size = len(dm.train_dataloader().dataset)
 
             if hparams.model_name != "all" and isinstance(hparams.model_name, str):
-                models = get_cifar_models(model_name=hparams.model_name, lib="torch")
+                get_cifar_models(in_size=32 * 32 * 3)
+                models = get_cifar_models(
+                    model_name=hparams.model_name,
+                    use_batch_norm=True,
+                    use_dropout=True,
+                    lib="torch",
+                    in_size=32 * 32 * 3,
+                )
             elif hparams.model_name != "all" and isinstance(hparams.model_name, list):
                 models = {
-                    model_name: get_cifar_models(model_name=model_name, lib="torch")
+                    model_name: get_cifar_models(
+                        model_name=model_name,
+                        use_batch_norm=True,
+                        use_dropout=True,
+                        lib="torch",
+                        in_size=32 * 32 * 3,
+                    )
                     for model_name in hparams.model_name
                 }
             else:
-                models = get_cifar_models(lib="torch")
+                models = get_cifar_models(
+                    lib="torch",
+                    use_batch_norm=True,
+                    use_dropout=True,
+                    in_size=32 * 32 * 3,
+                )
 
             for model_name, model in models.items():
                 print(f"Model: {model_name}")
@@ -188,7 +205,7 @@ if __name__ == "__main__":
     VAL_EVERY = args.val_every
 
     torch.set_float32_matmul_precision("medium")
-    L.seed_everything(SEED)
+    pl.seed_everything(SEED)
 
     hparams = ml_collections.ConfigDict()
     hparams.update(
@@ -213,9 +230,9 @@ if __name__ == "__main__":
         hparams.update(
             {
                 "epochs": 5,
-                "corrupt_prob": [0.5]
-                if args.corrupt_name != "normal_labels"
-                else [0.0],
+                "corrupt_prob": (
+                    [0.5] if args.corrupt_name != "normal_labels" else [0.0]
+                ),
                 "debug": True,
                 "offline": True,
             }
