@@ -1,20 +1,27 @@
+# Data
 data/
+cifar-10-batches-py/
+cifar-10-python.tar.gz
+
+# Logs
 logs/
+logs_2/
 generalization/logs_2/
+
+# Files
+*.pdf
+images/
+.vscode/
+.DS_Store
+wandb/
+artifacts/
+
+# Python
 __pycache__/
 dist/
 build/
 *.egg-info/
-*.pdf
-images/
-.vscode/
-cifar-10-batches-py/
-cifar-10-python.tar.gz
-.DS_Store
-wandb/
-artifacts/
-scratch*
 *.ipynb
-
-tests/
+scratch*
 viz.py
+tests/

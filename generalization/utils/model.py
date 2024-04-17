@@ -5,7 +5,6 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torchmetrics
-import wandb
 from generalization.utils.data import get_num_cpus
 from generalization.utils.experiment import build_experiment
 from torch import nn
@@ -233,11 +232,9 @@ class SampleClassifier(Classifier):
             len(sample_state["batch_index"])
         )
         sample_state["stage"] = [stage] * len(sample_state["batch_index"])
-
         sample_state["corrupted"] = [
-            bool(dataset.corrupted[i]) for i in sample_state["batch_index"]
+            dataset.corrupted[i].item() for i in sample_state["batch_index"]
         ]
-
         sample_state["label"] = list(map(int, sample_state["batch_label"]))
 
         epoch_df = pd.DataFrame.from_dict(sample_state)

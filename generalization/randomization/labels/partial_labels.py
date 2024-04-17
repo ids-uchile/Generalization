@@ -23,4 +23,4 @@ def partial_labels(img, target, corruption_prob, get_random_label):
 
         target = random_label
 
-    return img, target, torch.tensor(corrupted, dtype=torch.bool)
+    return img, target.item(), torch.tensor(corrupted, dtype=torch.bool)
