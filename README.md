@@ -2,13 +2,11 @@
 
 >Reproducing results from the 2017 paper [1611.03530](https://arxiv.org/abs/1611.03530)
 
-## This Repo contributes:
-- A modular approach to using datasets with randomization tests.
-- Implements all models described in the paper, both in Flax and Pytorch.
-- Reproduces original experiments. See this [report](https://wandb.ai/stepp1/generalization-2/reports/Understanding-Rethinking-Generalization-CIFAR10--Vmlldzo0NTA3Njcz).
+![CIFAR10 Corruptions](./figures/cifar10_corruptions.png)
 
+![Results](./figures/cifar10-resnet18-loss-all_corruptions-epoch.png)
 
-## Contributions
+## Paper Contributions
 
 * **Randomization tests**: *Deep neural networks easily fit random labels.*
 >  At the heart of our methodology is a variant of the well-known randomization test from non-parametric statistics (Edgington & Onghena, 2007). In a first set of experiments, we train several standard architectures on a copy of the data where the true labels were replaced by random labels.
