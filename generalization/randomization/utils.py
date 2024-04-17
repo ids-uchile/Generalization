@@ -26,6 +26,7 @@ def image_grid(dataset, idxs, no_transform=False, save_fname=None):
     if save_fname:
         # increase font size
         plt.rcParams.update({"font.size": 16})
+    assert len(idxs) == 10, "Only 10 images can be displayed at a time."
 
     fig, axs = plt.subplots(2, 5, figsize=(10, 5))
 
@@ -64,10 +65,10 @@ def image_grid(dataset, idxs, no_transform=False, save_fname=None):
         fig.savefig(f"{save_fname}-grid.png", bbox_inches="tight", dpi=300)
 
     plt.tight_layout()
-    fig.show()
+    return fig
 
 
-def image_grid_comparision(dataset, idxs, no_transform=False, save_fname=None):
+def image_grid_comparison(dataset, idxs, no_transform=False, save_fname=None):
     if save_fname:
         # increase font size
         plt.rcParams.update({"font.size": 16})
@@ -136,7 +137,7 @@ def _assert_image_tensor(img: Tensor) -> None:
         raise TypeError("Tensor is not a torch image.")
 
 
-def get_dimensions(img: Tensor) -> List[int]:
+def get_dimensions(img) -> List[int]:
     """Returns the dimensions of an image as [channels, height, width].
 
     Args:

@@ -23,13 +23,12 @@
 #   - We make use of the self.corruption_prob to determine the probability of corruption
 
 
-import functools
 import importlib
 from typing import Callable, List
 
 from absl import logging
 
-_IMPORT_TABLE = {
+RANDOMIZATIONS = {
     "random_labels": "generalization.randomization.labels.random_labels",
     "partial_labels": "generalization.randomization.labels.partial_labels",
     "random_pixels": "generalization.randomization.inputs.random_pixels",
@@ -56,7 +55,9 @@ class RandomizationRegistry(object):
           KeyError: If the provided name is not unique.
         """
         if name in cls._REGISTRY:
-            raise KeyError(f"Randomization with name ({name}) already registered.")
+            raise KeyError(
+                f"Randomization with name ({name}) already registered."
+            )
         cls._REGISTRY[name] = builder_fn
 
     @classmethod
@@ -74,8 +75,8 @@ class RandomizationRegistry(object):
           KeyError: If the randomization is not found.
         """
         if name not in cls._REGISTRY:
-            if name in _IMPORT_TABLE:
-                module = _IMPORT_TABLE[name]
+            if name in RANDOMIZATIONS:
+                module = RANDOMIZATIONS[name]
                 importlib.import_module(module)
                 logging.info(
                     "On-demand import of randomization (%s) from module (%s).",
@@ -104,7 +105,7 @@ def add_randomization(name: str, *args, **kwargs):
     """Decorator for shorthand randomization registdation."""
 
     def inner(builder_fn: Callable) -> Callable:
-        RandomizationRegistry.add(name, functools.partial(builder_fn, *args, **kwargs))
+        RandomizationRegistry.add(name, builder_fn)
         return builder_fn
 
     return inner

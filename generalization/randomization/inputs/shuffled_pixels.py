@@ -1,5 +1,6 @@
 import torch
-from generalization.randomization.corruptions import add_randomization
+
+from ..corruptions import add_randomization
 
 
 @add_randomization("shuffled_pixels")
@@ -29,7 +30,7 @@ def shuffled_pixels(img, target, corruption_prob, permutation):
         # apply it to the image
         img = apply_pixel_permutation(img, permutation_pixels)
 
-    return img, target, corrupted
+    return img, target, torch.tensor(corrupted, dtype=torch.bool)
 
 
 def apply_pixel_permutation(img, pixel_perm):

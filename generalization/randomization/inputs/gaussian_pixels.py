@@ -1,11 +1,13 @@
 import torch
-from generalization.randomization import corruptions
-from generalization.randomization import utils as dataset_utils
+
+from .. import corruptions
+from .. import utils as dataset_utils
 
 
 @corruptions.add_randomization("gaussian_pixels")
-def gaussian_pixels(img, target, corruption_prob, use_cifar=False):
-    c, w, h = img.size()
+def gaussian_pixels(img, target, corruption_prob, shape, use_cifar=False):
+    w = shape[1]
+    h = shape[2]
 
     sampled = None
     corrupted = False
@@ -22,4 +24,4 @@ def gaussian_pixels(img, target, corruption_prob, use_cifar=False):
 
         img = sampled
 
-    return img, target, corrupted
+    return img, target, torch.tensor(corrupted, dtype=torch.bool)

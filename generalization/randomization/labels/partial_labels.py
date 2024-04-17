@@ -1,5 +1,6 @@
 import torch
-from generalization.randomization.corruptions import add_randomization
+
+from ..corruptions import add_randomization
 
 
 @add_randomization("partial_labels")
@@ -22,4 +23,4 @@ def partial_labels(img, target, corruption_prob, get_random_label):
 
         target = random_label
 
-    return img, target, corrupted
+    return img, target, torch.tensor(corrupted, dtype=torch.bool)
