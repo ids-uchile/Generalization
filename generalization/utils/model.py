@@ -1,17 +1,18 @@
 from pathlib import Path
 
-import lightning as L
 import numpy as np
 import pandas as pd
+import pytorch_lightning as pl
 import torch
 import torchmetrics
 import wandb
-from generalization.utils.data import build_experiment, get_num_cpus
+from generalization.utils.data import get_num_cpus
+from generalization.utils.experiment import build_experiment
 from torch import nn
 from torch.nn import functional as F
 
 
-class Classifier(L.LightningModule):
+class Classifier(pl.LightningModule):
     def __init__(self, net: nn.Module, hparams: dict):
         super().__init__()
         self.net = net
@@ -24,9 +25,6 @@ class Classifier(L.LightningModule):
             task="multiclass", num_classes=self.n_classes, average=None
         )
         self.valid_acc = torchmetrics.Accuracy(
-            task="multiclass", num_classes=self.n_classes, average=None
-        )
-        self.valid_f1 = torchmetrics.F1Score(
             task="multiclass", num_classes=self.n_classes, average=None
         )
 
@@ -67,10 +65,6 @@ class Classifier(L.LightningModule):
         preds = logits.argmax(dim=1)
         self.valid_acc.update(preds, y)
         acc = self.valid_acc.compute()
-
-        self.valid_f1.update(preds, y)
-        f1 = self.valid_f1.compute()
-        print(f"acc: {acc}, f1: {f1}")
 
         self.log("valid/loss", loss, prog_bar=True, logger=True)
         self.log("valid/acc", acc.mean(), prog_bar=True, logger=True)
@@ -241,7 +235,7 @@ class SampleClassifier(Classifier):
         sample_state["stage"] = [stage] * len(sample_state["batch_index"])
 
         sample_state["corrupted"] = [
-            dataset.corrupted[i] for i in sample_state["batch_index"]
+            bool(dataset.corrupted[i]) for i in sample_state["batch_index"]
         ]
 
         sample_state["label"] = list(map(int, sample_state["batch_label"]))
@@ -312,7 +306,6 @@ class LitModel(SampleClassifier):
         )
         self.valid_acc.update(logits, y)
         self.valid_top5_acc.update(logits, y)
-        self.valid_f1.update(logits, y)
         self.log(
             "valid/acc",
             self.valid_acc.compute().mean(),
@@ -321,12 +314,6 @@ class LitModel(SampleClassifier):
         self.log(
             "valid/top5_acc",
             self.valid_top5_acc.compute(),
-        )
-        self.log(
-            "valid/f1",
-            self.valid_f1.compute().mean(),
-            prog_bar=True,
-            logger=True,
         )
 
         self.valid_sample_state = self.step_metrics(
@@ -360,7 +347,7 @@ class LitModel(SampleClassifier):
         return loss_per_batch
 
 
-class LitDataModule(L.LightningDataModule):
+class LitDataModule(pl.LightningDataModule):
     def __init__(self, hparams, corrupt_prob=0.0):
         super().__init__()
         self.hparams.update(hparams)
