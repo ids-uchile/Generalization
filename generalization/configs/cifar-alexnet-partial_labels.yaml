@@ -1,7 +1,7 @@
 batch_size: 512
 model_name: alexnet
 corrupt_name: partial_labels
-corrupt_prob: [0.05, 0.15, 0.3, 0.4]
+corrupt_prob: [0.05, 0.15, 0.3]
 dataset_name: cifar10
 epochs: 30
 gradient_clipping: true

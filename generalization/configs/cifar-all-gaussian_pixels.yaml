@@ -1,5 +1,5 @@
 batch_size: 512
-model_name: inception
+model_name: all
 corrupt_name: gaussian_pixels
 corrupt_prob: [0.15, 0.3, 0.6]
 dataset_name: cifar10

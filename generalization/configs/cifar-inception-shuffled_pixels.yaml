@@ -1,7 +1,7 @@
 batch_size: 512
 model_name: inception
 corrupt_name: shuffled_pixels
-corrupt_prob: [0.15, 0.3, 0.6, 0.9]
+corrupt_prob: [0.15, 0.3, 0.6]
 dataset_name: cifar10
 epochs: 30
 gradient_clipping: true
