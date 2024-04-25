@@ -90,21 +90,10 @@ class RandomizedDataset(VisionDataset):
         self.corruption_prob = corruption_prob
 
         if data is not None and targets is not None:
-            self.data = data
-            self.targets = targets
-            self.classes = kwargs.get("classes", None)
-            self.class_to_idx = kwargs.get("class_to_idx", None)
-            self.original_repr = f"RandomizedDataset(seed={seed}, corruption_name={corruption_name}, corruption_prob={corruption_prob})"
+            self.build_from_data(data, targets, **kwargs)
 
         elif dataset is not None and isinstance(dataset, torch.utils.data.Dataset):
-            self.data = dataset.data
-            self.targets = dataset.targets
-            self.classes = dataset.classes
-            self.class_to_idx = dataset.class_to_idx
-            self.original_repr = (
-                repr(dataset)
-                + f", seed={seed}, corruption_name={corruption_name}, corruption_prob={corruption_prob})"
-            )
+            self.build_from_dataset(dataset)
 
         else:
             raise ValueError(
@@ -191,14 +180,19 @@ class RandomizedDataset(VisionDataset):
         self.applied_corruptions = True
 
     def __getitem__(self, index):
-        x = transforms.functional.to_tensor(self.data[index])
-        y = torch.as_tensor(self.targets[index])
+        x, y = self.data[index], self.targets[index]
 
         if self.transform is not None:
             x = self.transform(x)
 
         if self.target_transform is not None:
             y = self.target_transform(y)
+
+        # check if x is not tensor, then apply
+        if not torch.is_tensor(x):
+            x = transforms.functional.to_tensor(self.data[index])
+        if not torch.is_tensor(y):
+            y = torch.as_tensor(self.targets[index])
 
         return (x, y, index)
 
@@ -207,6 +201,26 @@ class RandomizedDataset(VisionDataset):
 
     def __repr__(self):
         return self.original_repr
+
+    def build_from_data(
+        self,
+        data,
+        targets,
+        **kwargs,
+    ):
+        self.data = data
+        self.targets = targets
+        self.classes = kwargs.get("classes", None)
+        self.class_to_idx = kwargs.get("class_to_idx", None)
+        self.original_repr = f"RandomizedDataset(seed={self.seed}, corruption_name={self.corruption_name}, corruption_prob={self.corruption_prob})"
+
+    def build_from_dataset(self, dataset):
+        self.build_from_data(
+            dataset.data,
+            dataset.targets,
+            classes=dataset.classes,
+            class_to_idx=dataset.class_to_idx,
+        )
 
     def replace_transform(self, transform, target_transform=None) -> None:
         self.transform = transform

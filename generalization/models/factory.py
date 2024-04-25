@@ -56,6 +56,7 @@ class ModelFactory:
         self.lib = lib or self.lib
         models = {
             "resnet18": self.create_model("resnet18", cifar=True, **kwargs),
+            "resnet34": self.create_model("resnet34", cifar=True, **kwargs),
             "alexnet": self.create_model("alexnet", cifar=True, **kwargs),
             "inception": self.create_model("inception", cifar=True, **kwargs),
             "mlp_3x512": self.create_model("mlp_3x512", **kwargs),
@@ -65,9 +66,9 @@ class ModelFactory:
     def get_imagenet_models(self, model_name: str = None, lib: str = "torch"):
         self.lib = lib or self.lib
         models = {
-            "inception": self.create_model("inception"),
             "resnet18": self.create_model("resnet18"),
             "resnet34": self.create_model("resnet34"),
+            "inception": self.create_model("inception"),
         }
 
         return models if model_name is None else {model_name: models[model_name]}

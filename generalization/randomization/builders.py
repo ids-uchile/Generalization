@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torchvision.datasets import CIFAR10, ImageNet
 
+from ..utils.data import seed_everything
 from .dataset import RandomizedDataset
 from .transforms import get_cifar10_transforms
 from .utils import image_grid
@@ -24,16 +25,14 @@ def create_corrupted_dataset(
     attempt_load=True,
     seed=0,
 ):
-    if seed is not None:
-        from ..utils.data import seed_everything
+    seed_everything(seed)
 
-        seed_everything(seed)
     train_str = "train" if train else "test"
     if corruption_name is None:
         corruption_name = "normal_labels"
         corruption_prob = 0.0
 
-    possible_path = root + f"/{seed}/{corruption_name}/{corruption_prob}/{train_str}"
+    possible_path = root / f"{seed}/{corruption_name}/{corruption_prob}/{train_str}"
 
     if attempt_load:
         logging.info(f"Checking for dataset at {possible_path}")
@@ -49,7 +48,8 @@ def create_corrupted_dataset(
     # either pass the dataset or the dataset name
     # if both are passed, raise an error
     if dataset is not None and dataset_name is not None:
-        raise ValueError("Either pass the dataset or the dataset name, not both.")
+        raise ValueError(
+            "Either pass the dataset or the dataset name, not both.")
     if dataset is None:
         assert dataset_name is not None, "Dataset name must be provided."
         if dataset_name.lower() == "imagenet":
@@ -57,7 +57,8 @@ def create_corrupted_dataset(
         elif dataset_name.lower() == "cifar10":
             dataset = CIFAR10(root=root, download=True, train=train)
         else:
-            raise ValueError("Dataset name must be either 'imagenet' or 'cifar10'")
+            raise ValueError(
+                "Dataset name must be either 'imagenet' or 'cifar10'")
 
     dataset = RandomizedDataset(
         dataset=dataset,
@@ -69,10 +70,8 @@ def create_corrupted_dataset(
         seed=seed,
     )
     if save_ds:
-        dataset.save_dataset(
-            root_path=root,
-        )
-    logging.info(f"Dataset saved at {possible_path}")
+        dataset.save_dataset(root_path=root, )
+        logging.info(f"Dataset saved at {possible_path}")
     return dataset
 
 
