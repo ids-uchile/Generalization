@@ -1,6 +1,2 @@
-# torch
-# torchvision
 numpy
 matplotlib
-
-
