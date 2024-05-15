@@ -5,7 +5,7 @@ from .shuffled_pixels import apply_pixel_permutation
 
 
 @add_randomization("random_pixels")
-def random_pixels(img, target, corruption_prob):
+def random_pixels(img, target, corruption_prob, generator=None):
     """
     Applies a random permutation to the pixels of the image.
 
@@ -19,10 +19,10 @@ def random_pixels(img, target, corruption_prob):
     permutation_pixels = torch.arange(img.size(1) * img.size(2))
     c, h, w = img.size()
     corrupted = False
-    if torch.rand(1) <= corruption_prob:
+    if torch.rand(1, generator=generator) <= corruption_prob:
         corrupted = True
         # choose different random permutation for each image
-        permutation_pixels = torch.randperm(h * w)
+        permutation_pixels = torch.randperm(h * w, generator=generator)
 
         # apply it to the image
         img = apply_pixel_permutation(img, permutation_pixels)

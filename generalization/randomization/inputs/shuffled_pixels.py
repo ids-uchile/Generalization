@@ -4,7 +4,7 @@ from ..corruptions import add_randomization
 
 
 @add_randomization("shuffled_pixels")
-def shuffled_pixels(img, target, corruption_prob, permutation):
+def shuffled_pixels(img, target, corruption_prob, permutation, generator=None):
     """
     Applies the given permutation to the pixels of the image.
 
@@ -23,7 +23,7 @@ def shuffled_pixels(img, target, corruption_prob, permutation):
     assert permutation.size(0) == h * w, "Permutation size does not match image size"
 
     corrupted = False
-    if torch.rand(1) <= corruption_prob:
+    if torch.rand(1, generator=generator) <= corruption_prob:
         corrupted = True
         permutation_pixels = permutation
 

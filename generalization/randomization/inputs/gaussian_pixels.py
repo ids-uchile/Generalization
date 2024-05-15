@@ -5,7 +5,9 @@ from .. import utils as dataset_utils
 
 
 @corruptions.add_randomization("gaussian_pixels")
-def gaussian_pixels(img, target, corruption_prob, shape, use_cifar=False):
+def gaussian_pixels(
+    img, target, corruption_prob, shape, use_cifar=False, generator=None
+):
     w = shape[1]
     h = shape[2]
 
@@ -19,9 +21,9 @@ def gaussian_pixels(img, target, corruption_prob, shape, use_cifar=False):
         else:
             mean = dataset_utils.IMAGENET_CHANNEL_MEAN
             std = dataset_utils.IMAGENET_CHANNEL_STD
-        normal = torch.distributions.Normal(torch.tensor(mean), torch.tensor(std))
-        sampled = normal.sample((h, w)).permute(2, 0, 1).clamp(0, 255).type(torch.uint8)
 
-        img = sampled
+        normal_dist = torch.distributions.Normal(torch.tensor(mean), torch.tensor(std))
+        sampled = normal_dist.sample((w, h)).round().clamp(0, 255).type(torch.uint8)
+        img = sampled.numpy()
 
     return img, target, torch.tensor(corrupted, dtype=torch.bool)

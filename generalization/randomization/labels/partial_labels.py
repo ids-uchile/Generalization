@@ -4,7 +4,7 @@ from ..corruptions import add_randomization
 
 
 @add_randomization("partial_labels")
-def partial_labels(img, target, corruption_prob, get_random_label):
+def partial_labels(img, target, corruption_prob, get_random_label, generator=None):
     """
     Randomizes the labels of the dataset.
 
@@ -17,7 +17,7 @@ def partial_labels(img, target, corruption_prob, get_random_label):
     """
     random_label = target
     corrupted = False
-    if torch.rand(1) <= corruption_prob:
+    if torch.rand(1, generator=generator) <= corruption_prob:
         corrupted = True
         random_label = get_random_label(target)
 
