@@ -37,7 +37,7 @@ from torchvision import transforms
 from torchvision.datasets import VisionDataset
 from tqdm import tqdm
 
-from ..utils.data import seed_everything
+from .. import utils as utils
 from .corruptions import *
 from .utils import get_dimensions, open_data
 
@@ -73,19 +73,23 @@ class RandomizedDataset(VisionDataset):
         dataset=None,
         corruption_name=None,
         corruption_prob=0.0,
+        subset_size=None,
         train=True,
         transform=None,
         target_transform=None,
         seed=0,
+        is_cifar=True,
         **kwargs,
     ):
         super().__init__(
             root=None, transform=transform, target_transform=target_transform
         )
 
-        seed_everything(seed)
+        self.generator = utils.seed_everything(seed)
+        self.is_cifar = is_cifar
         self.seed = seed
         self.train = train
+        self.subset_size = subset_size
         self.corruption_name = corruption_name
         self.corruption_prob = corruption_prob
 
@@ -133,25 +137,30 @@ class RandomizedDataset(VisionDataset):
 
         elif self.corruption_name == "shuffled_pixels":
             # we cannot assume correct order [*,C,H,W] => we want to shuffle pixels in H,W
-            self.pixel_permutation = torch.randperm(permutation_size)
+            self.pixel_permutation = torch.randperm(
+                permutation_size, generator=self.generator
+            )
 
             self.corruption_func = partial(
                 get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 permutation=self.pixel_permutation,
+                generator=self.generator,
             )
 
         elif self.corruption_name == "random_pixels":
             self.corruption_func = partial(
                 get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
+                generator=self.generator,
             )
         elif self.corruption_name == "gaussian_pixels":
             self.corruption_func = partial(
                 get_randomization(self.corruption_name),
                 corruption_prob=self.corruption_prob,
                 shape=(c, w, h),
-                use_cifar=True,
+                use_cifar=self.is_cifar,
+                generator=self.generator,
             )
 
         else:
@@ -213,6 +222,15 @@ class RandomizedDataset(VisionDataset):
         self.classes = kwargs.get("classes", None)
         self.class_to_idx = kwargs.get("class_to_idx", None)
         self.original_repr = f"RandomizedDataset(seed={self.seed}, corruption_name={self.corruption_name}, corruption_prob={self.corruption_prob})"
+
+        if self.subset_size is not None:
+            # use self.generator
+            random_idxs = torch.randperm(len(self.data), generator=self.generator)
+            self.data = self.data[random_idxs]
+            self.targets = self.targets[random_idxs]
+
+            self.data = self.data[: self.subset_size]
+            self.targets = self.targets[: self.subset_size]
 
     def build_from_dataset(self, dataset):
         self.build_from_data(

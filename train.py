@@ -10,29 +10,34 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 from torch.nn.functional import cross_entropy as ce
 from torch.utils import data
 from torchinfo import summary
-from torchvision.datasets import CIFAR10
 
-from generalization import create_corrupted_dataset
+from generalization import create_corrupted_dataset, utils
 from generalization.models import get_cifar_models
 from generalization.randomization import available_corruptions
 from generalization.randomization.transforms import get_cifar10_transforms
-from generalization.utils.data import get_num_cpus
 
 FLAGS = flags.FLAGS
+# Data.
 flags.DEFINE_string("workdir", "./logs", "Directory to save logs")
 flags.DEFINE_string("data_root", "/data", "Directory to save/load data")
 flags.DEFINE_string("severity", "", "Specific severity of corruption to train on")
 flags.DEFINE_boolean("attempt_load", False, "Attempt to load corrupted dataset")
 flags.DEFINE_boolean("normal", False, "Train on normal data")
+# Training.
+flags.DEFINE_integer("epochs", 30, "Number of training epochs")
 flags.DEFINE_boolean("augment", False, "Augment data")
 flags.DEFINE_boolean("scheduler", False, "Use scheduler")
-
+flags.DEFINE_boolean("dropout", False, "Train with dropout")
+flags.DEFINE_boolean("bn", False, "Train with batch-norm")
+# Model.
+flags.DEFINE_string("model", "", "Specific model name to train")
 # DEBUG:
 flags.DEFINE_boolean("test_pipeline", False, "Test pipeline")
 flags.DEFINE_boolean("train_one_model", False, "Train one model")
 
 
 class Classifier(pl.LightningModule):
+
     def __init__(self, model, hparams, train_corrupted=None, valid_corrupted=None):
         super().__init__()
         self.model = model
@@ -138,10 +143,9 @@ class Classifier(pl.LightningModule):
         lr = self.lr
         nesterov = self.hparams.get("nesterov", False)
         momentum = self.hparams.get("momentum", 0.9)
-        # optimizer = torch.optim.SGD(
-        #     self.model.parameters(), lr=lr, momentum=momentum, nesterov=nesterov
-        # )
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        optimizer = torch.optim.SGD(
+            self.model.parameters(), lr=lr, momentum=momentum, nesterov=nesterov
+        )
         if self.hparams["use_scheduler"]:
             # 5 epoch of warmup, then cosine decay
             steps_per_epoch = math.ceil(
@@ -195,7 +199,11 @@ def train_model(
     )
     augment_str = "aug" if FLAGS.augment else "noaug"
     sched_str = "sched" if FLAGS.scheduler else "nosched"
-    version = f"{hparams['model_name']}-{augment_str}-{sched_str}"
+    dropout_str = "dropout" if FLAGS.dropout else "nodropout"
+    bn_str = "bn" if FLAGS.bn else "nobn"
+    version = (
+        f"{hparams['model_name']}-{augment_str}-{bn_str}-{dropout_str}-{sched_str}"
+    )
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         accelerator="auto",
@@ -214,7 +222,6 @@ def train_model(
         ],
     )
     # this results in ./logs/cifar10/{corruption}-{severity}/{model_name}-{aug}-{nosched}
-
     trainer.fit(model, train_loader, valid_loader)
     return model
 
@@ -230,7 +237,7 @@ def run_training(models, dataset, test_dataset, severity, corruption):
 
     common_hparams = {
         "n_classes": 10,
-        "max_epochs": 30,
+        "max_epochs": FLAGS.epochs,
         "batch_size": 512,
         "learning_rate": 0.03,
         "momentum": 0.9,
@@ -247,14 +254,14 @@ def run_training(models, dataset, test_dataset, severity, corruption):
             batch_size=hparams["batch_size"],
             shuffle=True,
             pin_memory=True,
-            num_workers=get_num_cpus() - 1,
+            num_workers=utils.get_num_cpus() - 1,
             prefetch_factor=2,
         )
         valid_loader = data.DataLoader(
             test_dataset,
             batch_size=hparams["batch_size"] * 2,
             shuffle=False,
-            num_workers=get_num_cpus() - 1,
+            num_workers=utils.get_num_cpus() - 1,
             pin_memory=True,
             prefetch_factor=2,
         )
@@ -301,6 +308,10 @@ def main(*args, **kwargs):
     models = get_cifar_models(
         use_batch_norm=True, use_dropout=True, in_size=32 * 32 * 3
     )
+
+    if FLAGS.model != "":
+        models = {FLAGS.model: models[FLAGS.model]}
+
     root = Path(FLAGS.data_root) / "cifar10"
     input_severities = {
         "low": 0.15,
@@ -308,9 +319,9 @@ def main(*args, **kwargs):
         "high": 0.6,
     }
     label_severities = {
-        "low": 0.05,
-        "medium": 0.15,
-        "high": 0.30,
+        "low": 0.1,
+        "medium": 0.3,
+        "high": 0.4,
     }
     if FLAGS.severity != "":
         input_severities = {FLAGS.severity: input_severities[FLAGS.severity]}
@@ -343,7 +354,7 @@ def main(*args, **kwargs):
             transform=get_cifar10_transforms(data_augmentations=FLAGS.augment),
             seed=seed,
             train=True,
-            save_ds=True,
+            save_ds=False,
             attempt_load=FLAGS.attempt_load,
         )
         logging.info(

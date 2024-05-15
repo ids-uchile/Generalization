@@ -59,7 +59,7 @@ class ModelFactory:
             "resnet34": self.create_model("resnet34", cifar=True, **kwargs),
             "alexnet": self.create_model("alexnet", cifar=True, **kwargs),
             "inception": self.create_model("inception", cifar=True, **kwargs),
-            "mlp_3x512": self.create_model("mlp_3x512", **kwargs),
+            # "mlp_3x512": self.create_model("mlp_3x512", **kwargs),
         }
         return models if model_name is None else {model_name: models[model_name]}
 

@@ -3,7 +3,7 @@ from .randomization import (
     create_corrupted_dataset,
     get_randomization,
 )
-from .utils.data import seed_everything
+from .utils import seed_everything
 
 """
 This file contains the functions to load the datasets.
